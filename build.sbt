@@ -36,6 +36,11 @@ ThisBuild / libraryDependencies += "dev.zio" %% "zio-streams" % "2.0.0-RC2"
 ThisBuild / libraryDependencies += "io.d11" %% "zhttp" % "2.0.0-RC4"
 ThisBuild / libraryDependencies += "io.d11" %% "zhttp-test" % "2.0.0-RC4" % Test
 
+// Requires Java 11 at minimum
+ThisBuild / libraryDependencies += "org.eclipse.jetty" % "jetty-servlet" % "11.0.8"
+ThisBuild / libraryDependencies += "org.eclipse.jetty" % "jetty-server" % "11.0.8"
+ThisBuild / libraryDependencies += "org.eclipse.jetty" % "jetty-webapp" % "11.0.8"
+
 lazy val root = project.in(file("."))
   .settings(
     name                 := "tryzio",
