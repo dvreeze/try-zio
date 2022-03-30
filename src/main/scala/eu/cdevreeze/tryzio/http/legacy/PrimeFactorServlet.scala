@@ -35,8 +35,8 @@ import zio.*
  * Servlet supporting prime factor queries, using the unlikely combination of ZIO and (async) servlets (on Jetty).
  *
  * Note the contrast between FP when using ZIO on the one hand and the opposite of FP when using the servlet API on the other hand. The idea
- * here is to show that integration is possible between those 2 worlds (even if sub-optimal), and that we keep control over locking of
- * threads, if need be. Note that some legacy Java APIs may require blocking on one thread.
+ * here is to show that integration is possible between those 2 worlds (even if sub-optimal), and that we keep control over blocking and
+ * single-threaded request handling, if need be. Note that some legacy Java APIs may require blocking on one thread.
  *
  * @author
  *   Chris de Vreeze
