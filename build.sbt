@@ -36,10 +36,13 @@ ThisBuild / libraryDependencies += "dev.zio" %% "zio-streams" % "2.0.0-RC2"
 ThisBuild / libraryDependencies += "io.d11" %% "zhttp" % "2.0.0-RC4"
 ThisBuild / libraryDependencies += "io.d11" %% "zhttp-test" % "2.0.0-RC4" % Test
 
-// Requires Java 11 at minimum
-ThisBuild / libraryDependencies += "org.eclipse.jetty" % "jetty-servlet" % "11.0.8"
-ThisBuild / libraryDependencies += "org.eclipse.jetty" % "jetty-server" % "11.0.8"
-ThisBuild / libraryDependencies += "org.eclipse.jetty" % "jetty-webapp" % "11.0.8"
+ThisBuild / libraryDependencies += "javax.servlet" % "servlet-api" % "3.0-alpha-1" % Provided
+
+ThisBuild / libraryDependencies += "org.apache.tomcat.embed" % "tomcat-embed-core" % "10.1.0-M14"
+ThisBuild / libraryDependencies += "org.apache.tomcat.embed" % "tomcat-embed-jasper" % "10.1.0-M14"
+ThisBuild / libraryDependencies += "org.apache.tomcat" % "tomcat-jasper" % "10.1.0-M14"
+ThisBuild / libraryDependencies += "org.apache.tomcat" % "tomcat-jasper-el" % "10.1.0-M14"
+ThisBuild / libraryDependencies += "org.apache.tomcat" % "tomcat-jsp-api" % "10.1.0-M14"
 
 lazy val root = project.in(file("."))
   .settings(

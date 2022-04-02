@@ -16,37 +16,51 @@
 
 package eu.cdevreeze.tryzio.http.legacy
 
-import org.eclipse.jetty.server.Server
-import org.eclipse.jetty.server.ServerConnector
-import org.eclipse.jetty.webapp.WebAppContext
+import java.io.File
+
+import org.apache.catalina.LifecycleException
+import org.apache.catalina.connector.Connector
+import org.apache.catalina.startup.Tomcat
 
 /**
- * Server running the PrimeFactorServlet.
+ * Embedded Tomcat server running the PrimeFactorServlet.
  *
  * @author
  *   Chris de Vreeze
  */
 object PrimeFactorServer:
 
-  @main
-  def main(host: String, port: Int): Unit =
-    val server = new Server()
-    val connector = new ServerConnector(server)
-    connector.setHost(host)
-    connector.setPort(port)
-    server.setConnectors(Array(connector))
+  private val firstPort = 8080
 
-    val webAppContext = new WebAppContext()
-    server.setHandler(webAppContext)
+  // @main
+  @throws[LifecycleException]
+  def main(args: Array[String]): Unit =
+    val port = args.ensuring(_.lengthIs == 1).apply(0).toInt
+    val tomcat: Tomcat = new Tomcat()
+    tomcat.setBaseDir("temp")
+    tomcat.setPort(port)
+    // Needed. See https://stackoverflow.com/questions/71383171/simple-embedded-tomcat-10-example.
+    val connector1 = tomcat.getConnector
+    connector1.setPort(firstPort)
+    val connector2 = new Connector()
+    connector2.setPort(port)
 
-    webAppContext.setContextPath("/")
-    // See https://happycoding.io/tutorials/java-server/embedded-jetty
-    // and https://stackoverflow.com/questions/25674206/embedded-jetty-does-not-find-annotated-servlet
-    webAppContext.setAttribute("org.eclipse.jetty.server.webapp.ContainerIncludeJarPattern", "./*")
+    val contextPath = ""
+    val docBase = new File(".").getAbsolutePath
 
-    server.start()
-    println(s"Server started on port $port")
-    server.join()
+    val context = tomcat.addContext(contextPath, docBase)
+
+    val servletName = "primeFactorServlet"
+    val urlPattern = "/primeFactors/*"
+
+    tomcat.addServlet(contextPath, servletName, new PrimeFactorServlet()) // How about async?
+    context.addServletMappingDecoded(urlPattern, servletName)
+
+    tomcat.start()
+    tomcat.getService.addConnector(connector1)
+    tomcat.getService.addConnector(connector2)
+    println(s"Tomcat started, listening at ports $firstPort and $port")
+    tomcat.getServer.await()
   end main
 
 end PrimeFactorServer
