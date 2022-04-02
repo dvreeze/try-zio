@@ -39,7 +39,7 @@ import jakarta.servlet.http.HttpServletResponse
 import zio.*
 
 /**
- * Servlet supporting prime factor queries, using the unlikely combination of ZIO and (async) servlets (on Jetty).
+ * Servlet supporting prime factor queries, using the unlikely combination of ZIO and (async) servlets (on Tomcat/Jetty).
  *
  * Note the contrast between FP when using ZIO on the one hand and the opposite of FP when using the servlet API on the other hand. The idea
  * here is to show that integration is possible between those 2 worlds (even if sub-optimal), and that we keep control over blocking and
@@ -103,6 +103,7 @@ class PrimeFactorServlet extends HttpServlet:
     // Note that Future.map results in a Future that also runs as soon as possible. No need to do a "blocking wait" either.
     responseTextOptionFuture.map { responseTextOption =>
       writeResponse(responseTextOption, numberString, resRef, resWriterRef)
+      showThread(path.toString, "'response writing' thread")
       asyncContextRef.get.complete()
     }
   end handleGetAsync
@@ -121,7 +122,7 @@ class PrimeFactorServlet extends HttpServlet:
               .map(factors => Some(s"Prime factors of $num: ${factors.getFactors.mkString(", ")}"))
               .catchAll(_ => IO.fail(new ServletException(s"No prime factors found for $numberAsString")))
       }
-      .tap(_ => IO.attempt(servletPath).flatMap(path => showThreadTask(path, "ZIO thread")))
+      .tap(_ => IO.attempt(servletPath).flatMap(path => showThreadTask(path, "a ZIO 'do real work' thread")))
   end getResponseTextTask
 
   // ZIO functional effect
@@ -129,7 +130,7 @@ class PrimeFactorServlet extends HttpServlet:
     IO.attempt(showThread(url, source))
 
   private def showThread(url: String, source: String): Unit =
-    println(s"Current thread (from $source): ${Thread.currentThread()}. URL: $url")
+    println(s"URL: $url. Current thread (from $source): ${Thread.currentThread()}")
 
   private def writeResponse(
       responseTextOption: Either[Throwable, Option[String]],
