@@ -53,7 +53,7 @@ object PrimeFactorServer:
     val servletName = "primeFactorServlet"
     val urlPattern = "/primeFactors/*"
 
-    tomcat.addServlet(contextPath, servletName, new PrimeFactorServlet()) // How about async?
+    tomcat.addServlet(contextPath, servletName, new PrimeFactorServlet()) // No need to "enable async".
     context.addServletMappingDecoded(urlPattern, servletName)
 
     tomcat.start()

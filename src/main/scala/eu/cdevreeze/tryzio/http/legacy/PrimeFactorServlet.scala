@@ -28,6 +28,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.*
 import scala.concurrent.duration.Duration as SDuration
+import scala.util.chaining.*
 
 import eu.cdevreeze.tryzio.primes.Primes
 import jakarta.servlet.AsyncContext
@@ -43,7 +44,7 @@ import zio.*
  *
  * Note the contrast between FP when using ZIO on the one hand and the opposite of FP when using the servlet API on the other hand. The idea
  * here is to show that integration is possible between those 2 worlds (even if sub-optimal), and that we keep control over blocking and
- * single-threaded request handling, if need be. Note that some legacy Java APIs may require blocking on one thread, due to the use of
+ * (partly) single-threaded request handling, if need be. Note that some legacy Java APIs may require blocking on one thread, due to the use of
  * thread locals under the hood.
  *
  * Below, for each HTTP request there are multiple threads involved: the initial request handling thread (from the container), the "async"
@@ -64,7 +65,9 @@ class PrimeFactorServlet extends HttpServlet:
   protected override def doGet(request: HttpServletRequest, response: HttpServletResponse): Unit =
     // Not very robust in error handling
     val requestUri = URI.create(request.getRequestURI)
-    val path: Path = FileSystems.getDefault.getPath(requestUri.getPath.stripPrefix("/"))
+    val path: Path = FileSystems.getDefault
+      .getPath(requestUri.getPath.stripPrefix("/"))
+      .pipe(p => p.ensuring(p.getNameCount == 2, s"Expected path like '/primeFactors/144' but got path '/$p'"))
     val numberString: String = path.subpath(path.getNameCount - 1, path.getNameCount).toString
 
     showThread(path.toString, "first request handling thread")
