@@ -39,10 +39,6 @@ ThisBuild / libraryDependencies += "io.d11" %% "zhttp-test" % "2.0.0-RC4" % Test
 ThisBuild / libraryDependencies += "javax.servlet" % "servlet-api" % "3.0-alpha-1" % Provided
 
 ThisBuild / libraryDependencies += "org.apache.tomcat.embed" % "tomcat-embed-core" % "10.1.0-M14"
-ThisBuild / libraryDependencies += "org.apache.tomcat.embed" % "tomcat-embed-jasper" % "10.1.0-M14"
-ThisBuild / libraryDependencies += "org.apache.tomcat" % "tomcat-jasper" % "10.1.0-M14"
-ThisBuild / libraryDependencies += "org.apache.tomcat" % "tomcat-jasper-el" % "10.1.0-M14"
-ThisBuild / libraryDependencies += "org.apache.tomcat" % "tomcat-jsp-api" % "10.1.0-M14"
 
 lazy val root = project.in(file("."))
   .settings(

@@ -136,6 +136,14 @@ The above is reasonably complicated, but what have we achieved (using an unnatur
 
 This project contains client and server code that shows all this in action.
 
+Probably most Scala web projects exploiting the Servlet API do so via the `Scalatra`_ library.
+It would therefore be desirable to extend the experiment above to one where Scalatra is used instead
+of directly using the Servlet API. This project uses Scala 3 instead of Scala 2.13, however, and even
+if Scalatra itself (supporting Scala 2.13, but not yet supporting Scala 3) can in principle be used
+from Scala 3 code if we are careful with dependencies, the quite strict type checker of the Scala 3
+compiler did not accept the use of ScalatraServlet and FutureSupport as Servlet super-types together.
+Hence the absence of an experiment with Scalatra and ZIO combined.
+
 Of course I would rather use ZIO with zio-http instead.
 
 .. _`ZIO`: https://zio.dev/
@@ -148,3 +156,4 @@ Of course I would rather use ZIO with zio-http instead.
 .. _`pitfalls`: https://medium.com/wix-engineering/5-pitfalls-to-avoid-when-starting-to-work-with-zio-adefdc7d2d5c
 .. _`Servlet API`: https://docs.oracle.com/javaee/7/api/javax/servlet/Servlet.html
 .. _`Java memory model`: https://www.cs.rice.edu/~johnmc/comp522/lecture-notes/COMP522-2019-Java-Memory-Model.pdf
+.. _`Scalatra`: https://scalatra.org/
