@@ -68,13 +68,15 @@ wasteful: threads are relatively scarce resources, and keeping request handling 
 using ZIO managed threads keeps the container managed request handling threads from doing more useful work like handling
 other HTTP requests.
 
-Fortunately relatively new versions of the Servlet API offer asynchronous request handling, through *ServletRequest.startAsync.start*.
+Fortunately relatively new versions of the Servlet API offer asynchronous request handling, through *ServletRequest.startAsync(req, res).start*.
 The *Runnable* passed to this "start" method runs in a different thread than the one where the processing of the request started,
 but it is still a thread from the container managed thread pool. The good thing is that the original thread that started handling
 of the request is no longer blocked, and is free to start handling other HTTP requests. This is definitely needed if we combine
 the Servlet model with ZIO (or another functional effect system).
 
-This gets us to the following flow for handling a servlet request:
+For more information on (asynchronous) servlets, see the `Servlet 3.0 specification`_.
+
+This gets us to the following potential flow for handling a servlet request:
 
 * The initial request handling request does little (other than "safely publishing" data needed by other threads), then starts async processing
 * The async request handling thread does little (other than "safely publishing" data needed by other threads), then calls a ZIO Runtime method to run the actual ZIO request handling effect
@@ -155,5 +157,6 @@ Of course I would rather use ZIO with zio-http instead.
 .. _`Cats Effect`: https://typelevel.org/cats-effect/
 .. _`pitfalls`: https://medium.com/wix-engineering/5-pitfalls-to-avoid-when-starting-to-work-with-zio-adefdc7d2d5c
 .. _`Servlet API`: https://docs.oracle.com/javaee/7/api/javax/servlet/Servlet.html
+.. _`Servlet 3.0 specification`: https://download.oracle.com/otn-pub/jcp/servlet-3.0-fr-eval-oth-JSpec/servlet-3_0-final-spec.pdf?AuthParam=1649020004_9b8b66cbc7374c0e8306cd6aa308d164
 .. _`Java memory model`: https://www.cs.rice.edu/~johnmc/comp522/lecture-notes/COMP522-2019-Java-Memory-Model.pdf
 .. _`Scalatra`: https://scalatra.org/

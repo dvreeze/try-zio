@@ -71,7 +71,7 @@ class PrimeFactorServlet extends HttpServlet:
     val numberString: String = path.subpath(path.getNameCount - 1, path.getNameCount).toString
 
     showThread(path.toString, "first request handling thread")
-    val asyncContext: AsyncContext = request.startAsync()
+    val asyncContext: AsyncContext = request.startAsync(request, response)
 
     asyncContext.start(() => handleGetAsync(asyncContext, path, numberString))
   end doGet
