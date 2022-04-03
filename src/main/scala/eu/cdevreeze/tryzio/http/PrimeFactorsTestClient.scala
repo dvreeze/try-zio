@@ -25,7 +25,6 @@ import eu.cdevreeze.tryzio.http.PrimeFactorsTestClient.validateEnv
 import zhttp.http.*
 import zhttp.service.ChannelFactory
 import zhttp.service.Client
-import zhttp.service.Client.ClientResponse
 import zhttp.service.EventLoopGroup
 import zio.*
 import zio.Console.*

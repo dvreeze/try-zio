@@ -16,6 +16,10 @@
 
 package eu.cdevreeze.tryzio.http
 
+import java.io.IOException
+
+import scala.util.chaining.*
+
 import eu.cdevreeze.tryzio.http.PrimesServer.validateEnv
 import eu.cdevreeze.tryzio.primes.Primes
 import zhttp.http.*
@@ -81,11 +85,15 @@ object PrimesServer extends ZIOAppDefault:
       }
       .catchAll(_ => IO.succeed(defaultPort))
 
+    def printServerStarted(port: Int): ZIO[Console, IOException, Unit] = printLine(s"Server started on port $port")
+
     portGetter.flatMap { port =>
       Server(httpApp)
         .withPort(port)
         .make
-        .use(start => printLine(s"Server started on port ${start.port}") *> ZIO.never)
+        .pipe { startZIO =>
+          ZIO.scoped[Console & EventLoopGroup & ServerChannelFactory]((startZIO <* printServerStarted(port)) *> ZIO.never)
+        }
         .provideCustomLayer(ServerChannelFactory.auto ++ EventLoopGroup.auto(0))
         .exitCode
     }

@@ -29,12 +29,11 @@ ThisBuild / publishTo := {
 ThisBuild / pomExtra := pomData
 ThisBuild / pomIncludeRepository := { _ => false }
 
-ThisBuild / libraryDependencies += "dev.zio" %% "zio" % "2.0.0-RC2"
-ThisBuild / libraryDependencies += "dev.zio" %% "zio-streams" % "2.0.0-RC2"
-// ThisBuild / libraryDependencies += "dev.zio" %% "zio-managed" % "2.0.0-RC3" // TODO Remove once no longer needed
+ThisBuild / libraryDependencies += "dev.zio" %% "zio" % "2.0.0-RC3"
+ThisBuild / libraryDependencies += "dev.zio" %% "zio-streams" % "2.0.0-RC3"
 
-ThisBuild / libraryDependencies += "io.d11" %% "zhttp" % "2.0.0-RC4"
-ThisBuild / libraryDependencies += "io.d11" %% "zhttp-test" % "2.0.0-RC4" % Test
+ThisBuild / libraryDependencies += "io.d11" %% "zhttp" % "2.0.0-RC5"
+ThisBuild / libraryDependencies += "io.d11" %% "zhttp-test" % "2.0.0-RC5" % Test
 
 ThisBuild / libraryDependencies += "javax.servlet" % "servlet-api" % "3.0-alpha-1" % Provided
 
