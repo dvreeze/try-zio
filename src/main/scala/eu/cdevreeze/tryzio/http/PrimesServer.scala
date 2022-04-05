@@ -18,6 +18,7 @@ package eu.cdevreeze.tryzio.http
 
 import java.io.IOException
 
+import scala.util.Try
 import scala.util.chaining.*
 
 import eu.cdevreeze.tryzio.http.PrimesServer.validateEnv
@@ -87,6 +88,8 @@ object PrimesServer extends ZIOAppDefault:
 
     def printServerStarted(port: Int): ZIO[Console, IOException, Unit] = printLine(s"Server started on port $port")
 
+    val threadCount: Int = Try(java.lang.Runtime.getRuntime.availableProcessors()).getOrElse(2)
+
     portGetter.flatMap { port =>
       Server(httpApp)
         .withPort(port)
@@ -94,7 +97,7 @@ object PrimesServer extends ZIOAppDefault:
         .pipe { startZIO =>
           ZIO.scoped[Console & EventLoopGroup & ServerChannelFactory]((startZIO <* printServerStarted(port)) *> ZIO.never)
         }
-        .provideCustomLayer(ServerChannelFactory.auto ++ EventLoopGroup.auto(0))
+        .provideCustomLayer(ServerChannelFactory.auto ++ EventLoopGroup.auto(threadCount))
         .exitCode
     }
   end run
