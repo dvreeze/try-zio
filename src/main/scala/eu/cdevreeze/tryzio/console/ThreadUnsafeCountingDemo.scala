@@ -47,7 +47,7 @@ object ThreadUnsafeCountingDemo extends ZIOAppDefault:
       veryMuchBrokenResult <- incrementVeryMuchBrokenCounterRepeatedly(VeryMuchBrokenCounter(), n)
       _ <- printLine(s"Expected result: $n. Computed (very much broken) result: $veryMuchBrokenResult")
       _ <- printLine("")
-      _ <- printLine(s"Counting unsafe counter $n times (volatile, but no locking) ...")
+      _ <- printLine(s"Counting unsafe counter $n times (volatile, but no locking, which in practice is even worse) ...")
       brokenResult <- incrementBrokenCounterRepeatedly(BrokenCounter(), n)
       _ <- printLine(s"Expected result: $n. Computed (broken) result: $brokenResult")
       _ <- printLine("")

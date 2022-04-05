@@ -23,7 +23,6 @@ import java.nio.file.FileSystems
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicReference
 
-import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.*
