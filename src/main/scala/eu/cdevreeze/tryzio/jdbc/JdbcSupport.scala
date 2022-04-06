@@ -73,7 +73,7 @@ object JdbcSupport:
 
   final class Transactional(val ds: DataSource, val config: TransactionConfig):
     def withIsolationLevel(newIsolationLevel: Int): Transactional =
-      Transactional(ds, config.withIsolationLevel(newIsolationLevel))
+      Transactional(ds, config.withIsolationLevel(newIsolationLevel)) // Class instance changed. Does this work?
 
     def call[A](f: Transaction => Task[A]): Task[A] =
       startTransactionAndCall(startTransaction())(f)
