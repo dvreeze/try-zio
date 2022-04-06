@@ -170,7 +170,7 @@ for its "volatile" semantics as per the Java memory model.
 The 3 different "mental models" mentioned above are:
 
 * Normal *synchronous*, *blocking* code. In this style each statement immediately does something (*eager evaluation*), they run sequentially after each other (if we ignore the JMM), and there is no intrinsic need to "chain" them using functions like *map* and *flatMap*
-* Scala *asynchronous* *Future*s. In other words, "wannabe values". They start immediately (*eagerly starting evaluation*), run asynchronously (so please do not wait for them to finish), and only when chaining them (map/flatMap) they run sequentially after each other
+* Scala *asynchronous* *Futures*. In other words, "wannabe values". They start immediately (*eagerly starting evaluation*), run asynchronously (so please do not wait for them to finish), and only when chaining them (map/flatMap) they run sequentially after each other
 * ZIO (or Monix or Cats Effect, etc.) *functional effects*. In other words, "lazy effects" or "recipes of programs" or "programs as values". They do not run at all when created/composed (*lazy evaluation*). Do not forget to chain them (map/flatMap) or else functional effects will get lost.
 
 Note that code may look quite similar, even if the "mental model" of its "effect" is quite different. Hence the explicit mentioning
