@@ -73,7 +73,7 @@ object JdbcSupport:
 
   final class Transactional(val ds: DataSource, val config: TransactionConfig):
     def withIsolationLevel(newIsolationLevel: Int): Transactional =
-      Transactional(ds, config.withIsolationLevel(newIsolationLevel)) // Class instance changed. Does this work?
+      Transactional(ds, config.withIsolationLevel(newIsolationLevel))
 
     def call[A](f: Transaction => Task[A]): Task[A] =
       startTransactionAndCall(startTransaction())(f)
@@ -81,6 +81,7 @@ object JdbcSupport:
     def startTransactionAndCall[A](acquireTx: => Task[Transaction])(f: Transaction => Task[A]): Task[A] =
       val scopedTask: ScopedTask[Transaction] =
         ZIO.acquireRelease(acquireTx)(tx => finishTransaction(tx))
+      // Transaction instance changed. Does this work? No, it does not.
       ZIO.scoped(scopedTask.flatMap(tx => f(tx).tapError(_ => IO.succeed(tx.onlyRollback()))))
 
     def query[A](psConfig: PreparedStatementConfig)(f: PreparedStatement => Task[A]): Task[A] =
