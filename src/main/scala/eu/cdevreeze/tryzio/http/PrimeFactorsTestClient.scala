@@ -69,7 +69,7 @@ object PrimeFactorsTestClient extends ZIOAppDefault:
           .foreachPar(numbers.toList) { number =>
             getUrl(cfg.host, cfg.port, number).flatMap(getResponseAsString).tap(printLine(_))
           }
-          .withParallelism(numberOfProcessors)
+          .withParallelism(1.max(numberOfProcessors / 2))
           .fork
         responseStrings <- responseStringsFiber.join
       } yield responseStrings

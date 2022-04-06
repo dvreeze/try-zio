@@ -138,14 +138,14 @@ The first step can be characterized as follows:
 * The initial request handling thread comes from the container managed thread pool
 * It can be used to prepare some (immutable?) data, to be "safely published" for use in other threads
 * It then starts async processing, as per the Servlet specification
-* The code for this step is written with the "mental model" of regular sequential side-effecting Scala code (see below)
+* The code for this step is written with the "mental model" of regular synchronous blocking side-effecting Scala code (see below)
 
 The second step is characterized as follows:
 
 * The async second request handling thread also comes from the container managed thread pool
 * It can safely obtain servlet request and response objects (through the *AsyncContext* API), and safely publish them for use later on in other threads
 * It then calls on the ZIO runtime to (asynchronously) run the *ZIO request handling functional effect* (see below), say, as a Scala Future
-* The code for this step is also written with the "mental model" of regular sequential side-effecting Scala code (except for the Future)
+* The code for this step is also written with the "mental model" of regular synchronous blocking side-effecting Scala code (except for the Future)
 
 The third step is characterized as follows:
 
@@ -169,9 +169,9 @@ for its "volatile" semantics as per the Java memory model.
 
 The 3 different "mental models" mentioned above are:
 
-* Normal *sequential* code. In other words, "eager effects". In this style each statement immediately does something, they run sequentially after each other, and there is no need to "chain" them using functions like *map* and *flatMap*
-* Scala *Future*. In other words, "wannabe values" or "eagerly starting effects". They run asynchronously (do not wait for them to finish), and only when chaining them (map/flatMap) they run sequentially after each other
-* ZIO (or Monix or Cats Effect, etc.) *functional effects*. In other words, "lazy effects" or "recipes of programs" or "programs as values". They do not run at all when created/composed. Do not forget to chain them (map/flatMap) or else functional effects will get lost.
+* Normal *synchronous*, *blocking* code. In this style each statement immediately does something (*eager evaluation*), they run sequentially after each other (if we ignore the JMM), and there is no intrinsic need to "chain" them using functions like *map* and *flatMap*
+* Scala *asynchronous* *Future*s. In other words, "wannabe values". They start immediately (*eagerly starting evaluation*), run asynchronously (so please do not wait for them to finish), and only when chaining them (map/flatMap) they run sequentially after each other
+* ZIO (or Monix or Cats Effect, etc.) *functional effects*. In other words, "lazy effects" or "recipes of programs" or "programs as values". They do not run at all when created/composed (*lazy evaluation*). Do not forget to chain them (map/flatMap) or else functional effects will get lost.
 
 Note that code may look quite similar, even if the "mental model" of its "effect" is quite different. Hence the explicit mentioning
 of these different ways to interpret code.
