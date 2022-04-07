@@ -129,9 +129,15 @@ object JdbcSupport:
       }
 
     private def queryForResults[A](ps: PreparedStatement, rowMapper: (ResultSet, Int) => A): Task[Seq[A]] =
-      Task.attempt {
-        val rs: ResultSet = ps.executeQuery()
-        Iterator.from(1).takeWhile(_ => rs.next).map(idx => rowMapper(rs, idx)).toSeq // 1-based?
+      // Database query is run in "acquire ResultSet" step. Is that ok?
+      val scopedTask: ScopedTask[ResultSet] =
+        ZIO.acquireRelease(Task.attempt(ps.executeQuery()))(rs => Task.succeed(rs.close()))
+      ZIO.scoped {
+        scopedTask.flatMap { rs =>
+          Task.attempt {
+            Iterator.from(1).takeWhile(_ => rs.next).map(idx => rowMapper(rs, idx)).toSeq // 1-based?
+          }
+        }
       }
   end UsingConnection
 
