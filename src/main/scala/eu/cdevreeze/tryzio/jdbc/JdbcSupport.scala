@@ -74,11 +74,11 @@ object JdbcSupport:
       execute(startTransaction())(f)
 
     def execute[A](acquireTx: => Task[Transaction])(f: Transaction => Task[A]): Task[A] =
-      val scopedTask: ScopedTask[Transaction] =
+      val manageTx: ScopedTask[Transaction] =
         ZIO.acquireRelease(acquireTx)(tx => finishTransaction(tx))
 
       ZIO.scoped {
-        scopedTask.flatMap { tx =>
+        manageTx.flatMap { tx =>
           f(tx).tapError(_ => IO.succeed(tx.onlyRollback()))
         }
       }
@@ -102,9 +102,9 @@ object JdbcSupport:
       execute(Task.attempt(ds.getConnection))(f)
 
     def execute[A](acquireConn: => Task[Connection])(f: Connection => Task[A]): Task[A] =
-      val scopedTask: ScopedTask[Connection] =
+      val manageConn: ScopedTask[Connection] =
         ZIO.acquireRelease(acquireConn)(conn => Task.succeed(conn.close()))
-      ZIO.scoped(scopedTask.flatMap(f))
+      ZIO.scoped(manageConn.flatMap(f))
   end UsingDataSource
 
   final class UsingConnection(val conn: Connection):
@@ -112,9 +112,9 @@ object JdbcSupport:
       execute(createPreparedStatement(sqlString, args))(f)
 
     def execute[A](acquirePs: => Task[PreparedStatement])(f: PreparedStatement => Task[A]): Task[A] =
-      val scopedTask: ScopedTask[PreparedStatement] =
+      val managePs: ScopedTask[PreparedStatement] =
         ZIO.acquireRelease(acquirePs)(ps => Task.succeed(ps.close()))
-      ZIO.scoped(scopedTask.flatMap(f))
+      ZIO.scoped(managePs.flatMap(f))
 
     def query[A](sqlString: String, args: Seq[Argument])(rowMapper: (ResultSet, Int) => A): Task[Seq[A]] =
       execute(sqlString, args)(ps => queryForResults(ps, rowMapper))
@@ -130,10 +130,10 @@ object JdbcSupport:
 
     private def queryForResults[A](ps: PreparedStatement, rowMapper: (ResultSet, Int) => A): Task[Seq[A]] =
       // Database query is run in "acquire ResultSet" step. Is that ok?
-      val scopedTask: ScopedTask[ResultSet] =
+      val manageRs: ScopedTask[ResultSet] =
         ZIO.acquireRelease(Task.attempt(ps.executeQuery()))(rs => Task.succeed(rs.close()))
       ZIO.scoped {
-        scopedTask.flatMap { rs =>
+        manageRs.flatMap { rs =>
           Task.attempt {
             Iterator.from(1).takeWhile(_ => rs.next).map(idx => rowMapper(rs, idx)).toSeq // 1-based?
           }
