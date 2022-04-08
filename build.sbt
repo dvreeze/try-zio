@@ -29,15 +29,23 @@ ThisBuild / publishTo := {
 ThisBuild / pomExtra := pomData
 ThisBuild / pomIncludeRepository := { _ => false }
 
-ThisBuild / libraryDependencies += "dev.zio" %% "zio" % "2.0.0-RC3"
-ThisBuild / libraryDependencies += "dev.zio" %% "zio-streams" % "2.0.0-RC3"
+val zioVersion = "2.0.0-RC3"
+val zioHttpVersion = "2.0.0-RC5"
 
-ThisBuild / libraryDependencies += "io.d11" %% "zhttp" % "2.0.0-RC5"
-ThisBuild / libraryDependencies += "io.d11" %% "zhttp-test" % "2.0.0-RC5" % Test
+ThisBuild / libraryDependencies += "dev.zio" %% "zio" % zioVersion
+ThisBuild / libraryDependencies += "dev.zio" %% "zio-streams" % zioVersion
+ThisBuild / libraryDependencies += "dev.zio" %% "zio-test" % zioVersion % Test
+ThisBuild / libraryDependencies += "dev.zio" %% "zio-test-sbt" % zioVersion % Test
+ThisBuild / libraryDependencies += "dev.zio" %% "zio-test-magnolia" % zioVersion % Test
+
+ThisBuild / libraryDependencies += "io.d11" %% "zhttp" % zioHttpVersion
+ThisBuild / libraryDependencies += "io.d11" %% "zhttp-test" % zioHttpVersion % Test
 
 ThisBuild / libraryDependencies += "javax.servlet" % "servlet-api" % "3.0-alpha-1" % Provided
 
 ThisBuild / libraryDependencies += "org.apache.tomcat.embed" % "tomcat-embed-core" % "10.1.0-M14"
+
+ThisBuild / testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 
 lazy val root = project.in(file("."))
   .settings(
