@@ -31,12 +31,14 @@ ThisBuild / pomIncludeRepository := { _ => false }
 
 val zioVersion = "2.0.0-RC3"
 val zioHttpVersion = "2.0.0-RC5"
+val testContainersVersion = "1.16.3"
 
 ThisBuild / libraryDependencies += "dev.zio" %% "zio" % zioVersion
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-streams" % zioVersion
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-test" % zioVersion % Test
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-test-sbt" % zioVersion % Test
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-test-magnolia" % zioVersion % Test
+ThisBuild / libraryDependencies += "dev.zio" %% "zio-test-junit" % zioVersion % Test
 
 ThisBuild / libraryDependencies += "io.d11" %% "zhttp" % zioHttpVersion
 ThisBuild / libraryDependencies += "io.d11" %% "zhttp-test" % zioHttpVersion % Test
@@ -44,6 +46,12 @@ ThisBuild / libraryDependencies += "io.d11" %% "zhttp-test" % zioHttpVersion % T
 ThisBuild / libraryDependencies += "javax.servlet" % "servlet-api" % "3.0-alpha-1" % Provided
 
 ThisBuild / libraryDependencies += "org.apache.tomcat.embed" % "tomcat-embed-core" % "10.1.0-M14"
+
+ThisBuild / libraryDependencies += "org.testcontainers" % "mysql" % testContainersVersion % Test
+ThisBuild / libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.28" % Test
+ThisBuild / libraryDependencies += "com.zaxxer" % "HikariCP" % "5.0.1" % Test // requires Java 11+
+
+ThisBuild / libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.11" % Test
 
 ThisBuild / testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 

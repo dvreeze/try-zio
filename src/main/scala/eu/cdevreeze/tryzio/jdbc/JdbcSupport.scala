@@ -31,7 +31,8 @@ import zio.*
  * Naive ZIO-based JDBC support, somewhat inspired by Spring JDBC support, but quite minimal and trying to be more "functional". It is also
  * quite "spartan" in that layers of transactions, connections, statements etc. are "in your face".
  *
- * Note that JDBC code typically must run in a blocking way, using one single thread for each (transactional) use of a Connection.
+ * Note that JDBC code typically must run in a blocking way, using one single thread for each (transactional) use of a Connection. So, by
+ * all means, wrap any ZIO effect doing database work in ZIO.blocking.
  *
  * @author
  *   Chris de Vreeze

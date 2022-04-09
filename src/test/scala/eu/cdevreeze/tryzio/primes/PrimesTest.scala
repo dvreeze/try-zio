@@ -40,6 +40,8 @@ import zio.test.suite
  */
 object PrimesTest extends DefaultRunnableSpec:
 
+  // PrimesTest is a singleton object, not a class, or else it will not be seen as test.
+
   def spec = suite("Primes test") {
     List(
       test("A positive integer >= 2 is equal to the multiplication results of its prime factors") {
