@@ -145,7 +145,7 @@ object JdbcSupportTest extends DefaultRunnableSpec:
         |  primary key (name, host)
         |)""".stripMargin
 
-    transactional(ds, TransactionConfig(IsolationLevel.Serializable))
+    transactional(ds, TransactionConfig(IsolationLevel.ReadCommitted))
       .execute { tx =>
         for {
           _ <- use(tx.connection).execute(sql, Seq.empty)(ps => Task.attempt(ps.execute()))
@@ -158,7 +158,7 @@ object JdbcSupportTest extends DefaultRunnableSpec:
     val sql1 = "delete from user_summary"
     val sql2 = "insert into user_summary (name, host) select user, host from user"
 
-    transactional(ds, TransactionConfig(IsolationLevel.Serializable))
+    transactional(ds, TransactionConfig(IsolationLevel.ReadCommitted))
       .execute { tx =>
         for {
           _ <- use(tx.connection).execute(sql1, Seq.empty)(ps => Task.attempt(ps.execute()))

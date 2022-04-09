@@ -178,7 +178,7 @@ object JdbcSupport:
       }
 
     private def queryForResults[A](ps: PreparedStatement, rowMapper: (ResultSet, Int) => A): Task[Seq[A]] =
-      // Database query is run in "acquire ResultSet" step. Is that ok? No, fix that.
+      // Database query is run in "acquire ResultSet" step. Is that ok?
       val manageRs: ScopedTask[ResultSet] =
         ZIO.acquireRelease(Task.attempt(ps.executeQuery()))(rs => Task.succeed(rs.close()))
       ZIO.scoped {
