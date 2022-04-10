@@ -33,7 +33,8 @@ import zio.*
  * quite "spartan" in that layers of transactions, connections, statements etc. are "in your face".
  *
  * Note that JDBC code typically must run in a blocking way, using one single thread for each (transactional) use of a Connection. So, by
- * all means, wrap any ZIO effect doing database work in ZIO.blocking.
+ * all means, wrap any ZIO effect doing database work in ZIO.blocking. In the case of the well-known Connector/J MySQL JDBC driver, see for
+ * example the discussion at https://bugs.mysql.com/bug.php?id=67760.
  *
  * @author
  *   Chris de Vreeze
@@ -130,6 +131,18 @@ object JdbcSupport:
       }
     end execute
 
+    /**
+     * Executes the given statement in its own transaction.
+     */
+    def executeStatement[A](sqlString: String, args: Seq[Argument]): Task[Boolean] =
+      execute { tx => use(tx.connection).executeStatement(sqlString, args) }
+
+    /**
+     * Executes the given query in its own transaction.
+     */
+    def query[A](sqlString: String, args: Seq[Argument])(rowMapper: (ResultSet, Int) => A): Task[Seq[A]] =
+      execute { tx => use(tx.connection).query(sqlString, args)(rowMapper) }
+
     // TODO Improve the functions below
 
     private def startTransaction(): Task[Transaction] =
@@ -156,6 +169,18 @@ object JdbcSupport:
       val manageConn: ScopedTask[Connection] =
         ZIO.acquireRelease(acquireConn)(conn => Task.succeed(conn.close()))
       ZIO.scoped(manageConn.flatMap(f))
+
+    /**
+     * Executes the given statement in its own separate database connection.
+     */
+    def executeStatement[A](sqlString: String, args: Seq[Argument]): Task[Boolean] =
+      execute { conn => use(conn).executeStatement(sqlString, args) }
+
+    /**
+     * Executes the given query in its own separate database connection.
+     */
+    def query[A](sqlString: String, args: Seq[Argument])(rowMapper: (ResultSet, Int) => A): Task[Seq[A]] =
+      execute { conn => use(conn).query(sqlString, args)(rowMapper) }
   end UsingDataSource
 
   final class UsingConnection(val conn: Connection):

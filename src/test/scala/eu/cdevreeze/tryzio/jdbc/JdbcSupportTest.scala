@@ -112,11 +112,7 @@ object JdbcSupportTest extends DefaultRunnableSpec:
 
   private def getUsers(ds: DataSource): Task[Seq[User]] =
     use(ds)
-      .execute { conn =>
-        use(conn).query("select host, user from user", Seq.empty) { (rs, _) =>
-          User(rs.getString(1), rs.getString(2))
-        }
-      }
+      .query("select host, user from user", Seq.empty) { (rs, _) => User(rs.getString(1), rs.getString(2)) }
       .pipe(blocking(_))
   end getUsers
 
@@ -129,10 +125,8 @@ object JdbcSupportTest extends DefaultRunnableSpec:
         | where tn.name like ?""".stripMargin
 
     use(ds)
-      .execute { conn =>
-        use(conn).query(sql, Seq(StringArg(timezoneLikeString))) { (rs, _) =>
-          Timezone(rs.getInt(1), rs.getString(2), rs.getString(3).pipe(_ == "Y"))
-        }
+      .query(sql, Seq(StringArg(timezoneLikeString))) { (rs, _) =>
+        Timezone(rs.getInt(1), rs.getString(2), rs.getString(3).pipe(_ == "Y"))
       }
       .pipe(blocking(_))
   end getSomeTimezones
@@ -146,7 +140,8 @@ object JdbcSupportTest extends DefaultRunnableSpec:
         |)""".stripMargin
 
     transactional(ds, TransactionConfig(IsolationLevel.ReadCommitted))
-      .execute { tx => use(tx.connection).executeStatement(sql, Seq.empty).unit }
+      .executeStatement(sql, Seq.empty)
+      .unit
       .pipe(blocking(_))
   end createSecondUserTable
 
@@ -166,10 +161,8 @@ object JdbcSupportTest extends DefaultRunnableSpec:
 
   private def getUsersFromSecondUserTable(ds: DataSource): Task[Seq[User]] =
     transactional(ds, TransactionConfig(IsolationLevel.ReadCommitted))
-      .execute { tx =>
-        use(tx.connection).query("select host, name from user_summary", Seq.empty) { (rs, _) =>
-          User(rs.getString(1), rs.getString(2))
-        }
+      .query("select host, name from user_summary", Seq.empty) { (rs, _) =>
+        User(rs.getString(1), rs.getString(2))
       }
       .pipe(blocking(_))
   end getUsersFromSecondUserTable
