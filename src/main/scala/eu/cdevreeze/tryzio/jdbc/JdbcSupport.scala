@@ -159,16 +159,19 @@ object JdbcSupport:
   end UsingDataSource
 
   final class UsingConnection(val conn: Connection):
-    def execute[A](sqlString: String, args: Seq[Argument])(f: PreparedStatement => Task[A]): Task[A] =
-      execute(createPreparedStatement(sqlString, args))(f)
-
-    def execute[A](acquirePs: Task[PreparedStatement])(f: PreparedStatement => Task[A]): Task[A] =
-      val managePs: ScopedTask[PreparedStatement] =
-        ZIO.acquireRelease(acquirePs)(ps => Task.succeed(ps.close()))
-      ZIO.scoped(managePs.flatMap(f))
+    def executeStatement[A](sqlString: String, args: Seq[Argument]): Task[Boolean] =
+      execute(sqlString, args)(ps => Task.attempt(ps.execute()))
 
     def query[A](sqlString: String, args: Seq[Argument])(rowMapper: (ResultSet, Int) => A): Task[Seq[A]] =
       execute(sqlString, args)(ps => queryForResults(ps, rowMapper))
+
+    private def execute[A](sqlString: String, args: Seq[Argument])(f: PreparedStatement => Task[A]): Task[A] =
+      execute(createPreparedStatement(sqlString, args))(f)
+
+    private def execute[A](acquirePs: Task[PreparedStatement])(f: PreparedStatement => Task[A]): Task[A] =
+      val managePs: ScopedTask[PreparedStatement] =
+        ZIO.acquireRelease(acquirePs)(ps => Task.succeed(ps.close()))
+      ZIO.scoped(managePs.flatMap(f))
 
     private def createPreparedStatement(sqlString: String, args: Seq[Argument]): Task[PreparedStatement] =
       Task.attempt {

@@ -146,11 +146,7 @@ object JdbcSupportTest extends DefaultRunnableSpec:
         |)""".stripMargin
 
     transactional(ds, TransactionConfig(IsolationLevel.ReadCommitted))
-      .execute { tx =>
-        for {
-          _ <- use(tx.connection).execute(sql, Seq.empty)(ps => Task.attempt(ps.execute()))
-        } yield ()
-      }
+      .execute { tx => use(tx.connection).executeStatement(sql, Seq.empty).unit }
       .pipe(blocking(_))
   end createSecondUserTable
 
@@ -161,8 +157,8 @@ object JdbcSupportTest extends DefaultRunnableSpec:
     transactional(ds, TransactionConfig(IsolationLevel.ReadCommitted))
       .execute { tx =>
         for {
-          _ <- use(tx.connection).execute(sql1, Seq.empty)(ps => Task.attempt(ps.execute()))
-          _ <- use(tx.connection).execute(sql2, Seq.empty)(ps => Task.attempt(ps.execute()))
+          _ <- use(tx.connection).executeStatement(sql1, Seq.empty)
+          _ <- use(tx.connection).executeStatement(sql2, Seq.empty)
         } yield ()
       }
       .pipe(blocking(_))
