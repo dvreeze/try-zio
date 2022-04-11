@@ -27,7 +27,6 @@ import javax.sql.DataSource
 import zio.Console.printLine
 import zio.Task
 import zio.ZIO
-import zio.ZIO.blocking
 import zio.test.Assertion.*
 import zio.test.DefaultRunnableSpec
 import zio.test.assert
@@ -95,13 +94,13 @@ object JdbcSupportTest extends DefaultRunnableSpec:
           assert(multipleResults.flatten.map(_.name))(contains("Europe/Amsterdam"))
         }
       },
-      test("Inserting users into the second user table succeeds") {
-        // The inserted Users will currently remain in the new table until a new MySQL container is created.
+      test("Inserting users into the second user table and querying them succeeds") {
         for {
           ds <- getDataSource()
           _ <- createSecondUserTable(ds)
           _ <- copyUsers(ds)
           users <- getUsersFromSecondUserTable(ds)
+          _ <- dropSecondUserTable(ds)
         } yield {
           assert(users)(contains(User("localhost", "root"))) &&
           assert(users)(contains(User("%", "root")))
@@ -159,6 +158,12 @@ object JdbcSupportTest extends DefaultRunnableSpec:
     using(ds, IsolationLevel.ReadCommitted)
       .query("select host, name from user_summary", Seq.empty) { (rs, _) => User(rs.getString(1), rs.getString(2)) }
   end getUsersFromSecondUserTable
+
+  private def dropSecondUserTable(ds: DataSource): Task[Unit] =
+    using(ds, IsolationLevel.ReadCommitted)
+      .executeStatement("drop table user_summary", Seq.empty)
+      .unit
+  end dropSecondUserTable
 
   // See https://github.com/brettwooldridge/HikariCP for connection pooling
 
