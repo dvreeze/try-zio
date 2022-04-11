@@ -111,7 +111,7 @@ object JdbcSupportTest extends DefaultRunnableSpec:
   }
 
   private def getUsers(ds: DataSource): Task[Seq[User]] =
-    use(ds)
+    using(ds)
       .query("select host, user from user", Seq.empty) { (rs, _) => User(rs.getString(1), rs.getString(2)) }
       .pipe(blocking(_))
   end getUsers
@@ -124,7 +124,7 @@ object JdbcSupportTest extends DefaultRunnableSpec:
         |    on t.time_zone_id = tn.time_zone_id
         | where tn.name like ?""".stripMargin
 
-    use(ds)
+    using(ds)
       .query(sql, Seq(StringArg(timezoneLikeString))) { (rs, _) =>
         Timezone(rs.getInt(1), rs.getString(2), rs.getString(3).pipe(_ == "Y"))
       }
@@ -139,7 +139,7 @@ object JdbcSupportTest extends DefaultRunnableSpec:
         |  primary key (name, host)
         |)""".stripMargin
 
-    transactional(ds, TransactionConfig(IsolationLevel.ReadCommitted))
+    using(ds, IsolationLevel.ReadCommitted)
       .executeStatement(sql, Seq.empty)
       .unit
       .pipe(blocking(_))
@@ -149,21 +149,19 @@ object JdbcSupportTest extends DefaultRunnableSpec:
     val sql1 = "delete from user_summary"
     val sql2 = "insert into user_summary (name, host) select user, host from user"
 
-    transactional(ds, TransactionConfig(IsolationLevel.ReadCommitted))
+    using(ds, IsolationLevel.ReadCommitted)
       .execute { tx =>
         for {
-          _ <- use(tx.connection).executeStatement(sql1, Seq.empty)
-          _ <- use(tx.connection).executeStatement(sql2, Seq.empty)
+          _ <- using(tx.connection).executeStatement(sql1, Seq.empty)
+          _ <- using(tx.connection).executeStatement(sql2, Seq.empty)
         } yield ()
       }
       .pipe(blocking(_))
   end copyUsers
 
   private def getUsersFromSecondUserTable(ds: DataSource): Task[Seq[User]] =
-    transactional(ds, TransactionConfig(IsolationLevel.ReadCommitted))
-      .query("select host, name from user_summary", Seq.empty) { (rs, _) =>
-        User(rs.getString(1), rs.getString(2))
-      }
+    using(ds, IsolationLevel.ReadCommitted)
+      .query("select host, name from user_summary", Seq.empty) { (rs, _) => User(rs.getString(1), rs.getString(2)) }
       .pipe(blocking(_))
   end getUsersFromSecondUserTable
 

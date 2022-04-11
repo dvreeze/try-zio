@@ -95,7 +95,7 @@ object JdbcSupport:
     case AnyRefArg(override val arg: AnyRef, val sqlType: Int) extends Argument(arg)
     case ShortArg(override val arg: Short) extends Argument(arg)
 
-    def useOn(ps: PreparedStatement, idx: Int): Unit =
+    def applyTo(ps: PreparedStatement, idx: Int): Unit =
       this match
         case StringArg(v)          => ps.setString(idx, v)
         case BigDecimalArg(v)      => ps.setBigDecimal(idx, v.bigDecimal)
@@ -125,8 +125,7 @@ object JdbcSupport:
 
       ZIO.scoped {
         manageTx.flatMap { tx =>
-          f(tx)
-            .tapError(_ => IO.succeed(tx.onlyRollback()))
+          f(tx).tapError(_ => IO.succeed(tx.onlyRollback()))
         }
       }
     end execute
@@ -135,13 +134,13 @@ object JdbcSupport:
      * Executes the given statement in its own transaction.
      */
     def executeStatement[A](sqlString: String, args: Seq[Argument]): Task[Boolean] =
-      execute { tx => use(tx.connection).executeStatement(sqlString, args) }
+      execute { tx => using(tx.connection).executeStatement(sqlString, args) }
 
     /**
      * Executes the given query in its own transaction.
      */
     def query[A](sqlString: String, args: Seq[Argument])(rowMapper: (ResultSet, Int) => A): Task[Seq[A]] =
-      execute { tx => use(tx.connection).query(sqlString, args)(rowMapper) }
+      execute { tx => using(tx.connection).query(sqlString, args)(rowMapper) }
 
     // TODO Improve the functions below
 
@@ -174,13 +173,13 @@ object JdbcSupport:
      * Executes the given statement in its own separate database connection.
      */
     def executeStatement[A](sqlString: String, args: Seq[Argument]): Task[Boolean] =
-      execute { conn => use(conn).executeStatement(sqlString, args) }
+      execute { conn => using(conn).executeStatement(sqlString, args) }
 
     /**
      * Executes the given query in its own separate database connection.
      */
     def query[A](sqlString: String, args: Seq[Argument])(rowMapper: (ResultSet, Int) => A): Task[Seq[A]] =
-      execute { conn => use(conn).query(sqlString, args)(rowMapper) }
+      execute { conn => using(conn).query(sqlString, args)(rowMapper) }
   end UsingDataSource
 
   final class UsingConnection(val conn: Connection):
@@ -201,7 +200,7 @@ object JdbcSupport:
     private def createPreparedStatement(sqlString: String, args: Seq[Argument]): Task[PreparedStatement] =
       Task.attempt {
         val ps = conn.prepareStatement(sqlString)
-        args.zipWithIndex.foreach { (arg, index) => arg.useOn(ps, index + 1) }
+        args.zipWithIndex.foreach { (arg, index) => arg.applyTo(ps, index + 1) }
         ps
       }
 
@@ -220,10 +219,13 @@ object JdbcSupport:
 
   // Entrypoints of this API
 
-  def transactional(ds: DataSource, config: TransactionConfig): Transactional = Transactional(ds, config)
+  def using(ds: DataSource, config: TransactionConfig): Transactional = Transactional(ds, config)
 
-  def use(ds: DataSource): UsingDataSource = UsingDataSource(ds)
+  def using(ds: DataSource, isolationLevel: IsolationLevel): Transactional =
+    using(ds, TransactionConfig(isolationLevel))
 
-  def use(conn: Connection): UsingConnection = UsingConnection(conn)
+  def using(ds: DataSource): UsingDataSource = UsingDataSource(ds)
+
+  def using(conn: Connection): UsingConnection = UsingConnection(conn)
 
 end JdbcSupport
