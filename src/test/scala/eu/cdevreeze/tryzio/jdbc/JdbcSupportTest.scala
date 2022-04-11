@@ -113,7 +113,6 @@ object JdbcSupportTest extends DefaultRunnableSpec:
   private def getUsers(ds: DataSource): Task[Seq[User]] =
     using(ds)
       .query("select host, user from user", Seq.empty) { (rs, _) => User(rs.getString(1), rs.getString(2)) }
-      .pipe(blocking(_))
   end getUsers
 
   private def getSomeTimezones(timezoneLikeString: String, ds: DataSource): Task[Seq[Timezone]] =
@@ -128,7 +127,6 @@ object JdbcSupportTest extends DefaultRunnableSpec:
       .query(sql, Seq(StringArg(timezoneLikeString))) { (rs, _) =>
         Timezone(rs.getInt(1), rs.getString(2), rs.getString(3).pipe(_ == "Y"))
       }
-      .pipe(blocking(_))
   end getSomeTimezones
 
   private def createSecondUserTable(ds: DataSource): Task[Unit] =
@@ -142,7 +140,6 @@ object JdbcSupportTest extends DefaultRunnableSpec:
     using(ds, IsolationLevel.ReadCommitted)
       .executeStatement(sql, Seq.empty)
       .unit
-      .pipe(blocking(_))
   end createSecondUserTable
 
   private def copyUsers(ds: DataSource): Task[Unit] =
@@ -156,13 +153,11 @@ object JdbcSupportTest extends DefaultRunnableSpec:
           _ <- using(tx.connection).executeStatement(sql2, Seq.empty)
         } yield ()
       }
-      .pipe(blocking(_))
   end copyUsers
 
   private def getUsersFromSecondUserTable(ds: DataSource): Task[Seq[User]] =
     using(ds, IsolationLevel.ReadCommitted)
       .query("select host, name from user_summary", Seq.empty) { (rs, _) => User(rs.getString(1), rs.getString(2)) }
-      .pipe(blocking(_))
   end getUsersFromSecondUserTable
 
   // See https://github.com/brettwooldridge/HikariCP for connection pooling

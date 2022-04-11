@@ -29,12 +29,11 @@ import javax.sql.DataSource
 import zio.*
 
 /**
- * Naive ZIO-based JDBC support, somewhat inspired by Spring JDBC support, but quite minimal and trying to be more "functional". It is also
- * quite "spartan" in that layers of transactions, connections, statements etc. are "in your face".
+ * Naive ZIO-based JDBC support, somewhat inspired by Spring JDBC support, but quite minimal and trying to be more "functional".
  *
- * Note that JDBC code typically must run in a blocking way, using one single thread for each (transactional) use of a Connection. So, by
- * all means, wrap any ZIO effect doing database work in ZIO.blocking. In the case of the well-known Connector/J MySQL JDBC driver, see for
- * example the discussion at https://bugs.mysql.com/bug.php?id=67760.
+ * Note that JDBC code typically must run in a blocking way, using one single thread for each (transactional) use of a Connection. Hence the
+ * blocking effects around database work. In the case of the well-known Connector/J MySQL JDBC driver, see for example the discussion at
+ * https://bugs.mysql.com/bug.php?id=67760.
  *
  * @author
  *   Chris de Vreeze
@@ -123,11 +122,13 @@ object JdbcSupport:
       val manageTx: ScopedTask[Transaction] =
         ZIO.acquireRelease(acquireTx)(tx => finishTransaction(tx))
 
-      ZIO.scoped {
-        manageTx.flatMap { tx =>
-          f(tx).tapError(_ => IO.succeed(tx.onlyRollback()))
+      ZIO
+        .scoped {
+          manageTx.flatMap { tx =>
+            f(tx).tapError(_ => IO.succeed(tx.onlyRollback()))
+          }
         }
-      }
+        .pipe(ZIO.blocking(_))
     end execute
 
     /**
@@ -167,7 +168,7 @@ object JdbcSupport:
     def execute[A](acquireConn: Task[Connection])(f: Connection => Task[A]): Task[A] =
       val manageConn: ScopedTask[Connection] =
         ZIO.acquireRelease(acquireConn)(conn => Task.succeed(conn.close()))
-      ZIO.scoped(manageConn.flatMap(f))
+      ZIO.scoped(manageConn.flatMap(f)).pipe(ZIO.blocking(_))
 
     /**
      * Executes the given statement in its own separate database connection.
@@ -195,7 +196,7 @@ object JdbcSupport:
     private def execute[A](acquirePs: Task[PreparedStatement])(f: PreparedStatement => Task[A]): Task[A] =
       val managePs: ScopedTask[PreparedStatement] =
         ZIO.acquireRelease(acquirePs)(ps => Task.succeed(ps.close()))
-      ZIO.scoped(managePs.flatMap(f))
+      ZIO.scoped(managePs.flatMap(f)).pipe(ZIO.blocking(_))
 
     private def createPreparedStatement(sqlString: String, args: Seq[Argument]): Task[PreparedStatement] =
       Task.attempt {
