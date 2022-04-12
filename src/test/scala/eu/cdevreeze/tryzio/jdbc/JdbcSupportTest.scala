@@ -17,6 +17,7 @@
 package eu.cdevreeze.tryzio.jdbc
 
 import java.sql.Connection
+import java.sql.PreparedStatement
 
 import scala.util.chaining.*
 
@@ -60,6 +61,13 @@ object JdbcSupportTest extends DefaultRunnableSpec:
         for {
           result <- getDataSource()
             .flatMap(ds => getUsers(ds))
+            .tap(res => printLine(s"Users: $res"))
+        } yield assert(result.map(_.host).distinct)(equalTo(Seq("%", "localhost")))
+      },
+      test("Querying for users the hard way succeeds") {
+        for {
+          result <- getDataSource()
+            .flatMap(ds => getUsersTheHardWay(ds))
             .tap(res => printLine(s"Users: $res"))
         } yield assert(result.map(_.host).distinct)(equalTo(Seq("%", "localhost")))
       },
@@ -114,6 +122,17 @@ object JdbcSupportTest extends DefaultRunnableSpec:
       .query("select host, user from user", Seq.empty) { (rs, _) => User(rs.getString(1), rs.getString(2)) }
   end getUsers
 
+  private def getUsersTheHardWay(ds: DataSource): Task[Seq[User]] =
+    def createPreparedStatement(conn: Connection): Task[PreparedStatement] =
+      Task.attempt { conn.prepareStatement("select host, user from user") }
+
+    using(ds)
+      .queryForSingleResult(createPreparedStatement) { rs =>
+        // This unsafe code is wrapped in a Task by function queryForSingleColumn
+        Iterator.from(1).takeWhile(_ => rs.next).map(_ => User(rs.getString(1), rs.getString(2))).toSeq
+      }
+  end getUsersTheHardWay
+
   private def getSomeTimezones(timezoneLikeString: String, ds: DataSource): Task[Seq[Timezone]] =
     val sql =
       """select t.time_zone_id, tn.name, t.use_leap_seconds
@@ -137,7 +156,7 @@ object JdbcSupportTest extends DefaultRunnableSpec:
         |)""".stripMargin
 
     using(ds, IsolationLevel.ReadCommitted)
-      .executeStatement(sql, Seq.empty)
+      .update(sql, Seq.empty)
       .unit
   end createSecondUserTable
 
@@ -148,8 +167,8 @@ object JdbcSupportTest extends DefaultRunnableSpec:
     using(ds, IsolationLevel.ReadCommitted)
       .execute { tx =>
         for {
-          _ <- using(tx.connection).executeStatement(sql1, Seq.empty)
-          _ <- using(tx.connection).executeStatement(sql2, Seq.empty)
+          _ <- using(tx.connection).update(sql1, Seq.empty)
+          _ <- using(tx.connection).update(sql2, Seq.empty)
         } yield ()
       }
   end copyUsers
@@ -161,7 +180,7 @@ object JdbcSupportTest extends DefaultRunnableSpec:
 
   private def dropSecondUserTable(ds: DataSource): Task[Unit] =
     using(ds, IsolationLevel.ReadCommitted)
-      .executeStatement("drop table user_summary", Seq.empty)
+      .update("drop table user_summary", Seq.empty)
       .unit
   end dropSecondUserTable
 

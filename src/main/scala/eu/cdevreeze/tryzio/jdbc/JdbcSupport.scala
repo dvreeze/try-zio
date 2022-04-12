@@ -81,7 +81,7 @@ object JdbcSupport:
         case Connection.TRANSACTION_REPEATABLE_READ  => IsolationLevel.RepeatableRead
         case Connection.TRANSACTION_SERIALIZABLE     => IsolationLevel.Serializable
 
-  // Far from complete at the moment
+  // Far from complete at the moment, such as missing support for date-time arguments
   enum Argument(val arg: Any):
     case StringArg(override val arg: String) extends Argument(arg)
     case BigDecimalArg(override val arg: BigDecimal) extends Argument(arg)
@@ -111,7 +111,50 @@ object JdbcSupport:
 
   // TODO Make exception types for which to rollback configurable
 
-  final class Transactional(val ds: DataSource, val config: TransactionConfig):
+  /**
+   * SQL query and update API, shared by types Transactional, UsingDataSource and UsingConnection. Depending on the latter type, the SQL
+   * runs in its own new transaction, its own Connection (obtained from the DataSource) or the given Connection.
+   */
+  sealed trait QueryApi:
+
+    // TODO Mainly batch updates, stored procedure/function calls
+
+    /**
+     * Performs the given SQL query, passing the given query parameters. The passed row mapper is used per row to create one element of the
+     * result collection.
+     */
+    def query[A](sqlString: String, args: Seq[Argument])(rowMapper: (ResultSet, Int) => A): Task[Seq[A]]
+
+    /**
+     * Performs the SQL query created by the given PreparedStatement creator. The passed row mapper is used per row to create one element of
+     * the result collection.
+     */
+    def query[A](psc: Connection => Task[PreparedStatement])(rowMapper: (ResultSet, Int) => A): Task[Seq[A]]
+
+    /**
+     * Performs the given single-result SQL query, passing the given query parameters. The passed ResultSet extractor is used return the
+     * result.
+     */
+    def queryForSingleResult[A](sqlString: String, args: Seq[Argument])(resultSetExtractor: ResultSet => A): Task[A]
+
+    /**
+     * Performs the single-result SQL query created by the given PreparedStatement creator. The passed ResultSet extractor is used return
+     * the result.
+     */
+    def queryForSingleResult[A](psc: Connection => Task[PreparedStatement])(resultSetExtractor: ResultSet => A): Task[A]
+
+    /**
+     * Performs the given SQL update operation (like insert, delete, update or DDL), passing the given query parameters.
+     */
+    def update(sqlString: String, args: Seq[Argument]): Task[Int]
+
+    /**
+     * Performs a SQL update operation (like insert, delete, update or DDL), created by the given PreparedStatement creator.
+     */
+    def update(psc: Connection => Task[PreparedStatement]): Task[Int]
+  end QueryApi
+
+  final class Transactional(val ds: DataSource, val config: TransactionConfig) extends QueryApi:
     def withIsolationLevel(newIsolationLevel: IsolationLevel): Transactional =
       Transactional(ds, config.withIsolationLevel(newIsolationLevel))
 
@@ -131,17 +174,23 @@ object JdbcSupport:
         .pipe(ZIO.blocking(_))
     end execute
 
-    /**
-     * Executes the given statement in its own transaction.
-     */
-    def executeStatement[A](sqlString: String, args: Seq[Argument]): Task[Boolean] =
-      execute { tx => using(tx.connection).executeStatement(sqlString, args) }
-
-    /**
-     * Executes the given query in its own transaction.
-     */
     def query[A](sqlString: String, args: Seq[Argument])(rowMapper: (ResultSet, Int) => A): Task[Seq[A]] =
       execute { tx => using(tx.connection).query(sqlString, args)(rowMapper) }
+
+    def query[A](psc: Connection => Task[PreparedStatement])(rowMapper: (ResultSet, Int) => A): Task[Seq[A]] =
+      execute { tx => using(tx.connection).query(psc)(rowMapper) }
+
+    def queryForSingleResult[A](sqlString: String, args: Seq[Argument])(resultSetExtractor: ResultSet => A): Task[A] =
+      execute { tx => using(tx.connection).queryForSingleResult(sqlString, args)(resultSetExtractor) }
+
+    def queryForSingleResult[A](psc: Connection => Task[PreparedStatement])(resultSetExtractor: ResultSet => A): Task[A] =
+      execute { tx => using(tx.connection).queryForSingleResult(psc)(resultSetExtractor) }
+
+    def update(sqlString: String, args: Seq[Argument]): Task[Int] =
+      execute { tx => using(tx.connection).update(sqlString, args) }
+
+    def update(psc: Connection => Task[PreparedStatement]): Task[Int] =
+      execute { tx => using(tx.connection).update(psc) }
 
     // TODO Improve the functions below
 
@@ -161,7 +210,7 @@ object JdbcSupport:
       }.orDie
   end Transactional
 
-  final class UsingDataSource(val ds: DataSource):
+  final class UsingDataSource(val ds: DataSource) extends QueryApi:
     def execute[A](f: Connection => Task[A]): Task[A] =
       execute(Task.attempt(ds.getConnection))(f)
 
@@ -170,25 +219,43 @@ object JdbcSupport:
         ZIO.acquireRelease(acquireConn)(conn => Task.succeed(conn.close()))
       ZIO.scoped(manageConn.flatMap(f)).pipe(ZIO.blocking(_))
 
-    /**
-     * Executes the given statement in its own separate database connection.
-     */
-    def executeStatement[A](sqlString: String, args: Seq[Argument]): Task[Boolean] =
-      execute { conn => using(conn).executeStatement(sqlString, args) }
-
-    /**
-     * Executes the given query in its own separate database connection.
-     */
     def query[A](sqlString: String, args: Seq[Argument])(rowMapper: (ResultSet, Int) => A): Task[Seq[A]] =
       execute { conn => using(conn).query(sqlString, args)(rowMapper) }
+
+    def query[A](psc: Connection => Task[PreparedStatement])(rowMapper: (ResultSet, Int) => A): Task[Seq[A]] =
+      execute { conn => using(conn).query(psc)(rowMapper) }
+
+    def queryForSingleResult[A](sqlString: String, args: Seq[Argument])(resultSetExtractor: ResultSet => A): Task[A] =
+      execute { conn => using(conn).queryForSingleResult(sqlString, args)(resultSetExtractor) }
+
+    def queryForSingleResult[A](psc: Connection => Task[PreparedStatement])(resultSetExtractor: ResultSet => A): Task[A] =
+      execute { conn => using(conn).queryForSingleResult(psc)(resultSetExtractor) }
+
+    def update(sqlString: String, args: Seq[Argument]): Task[Int] =
+      execute { conn => using(conn).update(sqlString, args) }
+
+    def update(psc: Connection => Task[PreparedStatement]): Task[Int] =
+      execute { conn => using(conn).update(psc) }
   end UsingDataSource
 
-  final class UsingConnection(val conn: Connection):
-    def executeStatement[A](sqlString: String, args: Seq[Argument]): Task[Boolean] =
-      execute(sqlString, args)(ps => Task.attempt(ps.execute()))
-
+  final class UsingConnection(val conn: Connection) extends QueryApi:
     def query[A](sqlString: String, args: Seq[Argument])(rowMapper: (ResultSet, Int) => A): Task[Seq[A]] =
       execute(sqlString, args)(ps => queryForResults(ps, rowMapper))
+
+    def query[A](psc: Connection => Task[PreparedStatement])(rowMapper: (ResultSet, Int) => A): Task[Seq[A]] =
+      execute(psc(conn))(ps => queryForResults(ps, rowMapper))
+
+    def queryForSingleResult[A](sqlString: String, args: Seq[Argument])(resultSetExtractor: ResultSet => A): Task[A] =
+      execute(sqlString, args)(ps => queryForSingleResult(ps, resultSetExtractor))
+
+    def queryForSingleResult[A](psc: Connection => Task[PreparedStatement])(resultSetExtractor: ResultSet => A): Task[A] =
+      execute(psc(conn))(ps => queryForSingleResult(ps, resultSetExtractor))
+
+    def update(sqlString: String, args: Seq[Argument]): Task[Int] =
+      execute(sqlString, args)(ps => Task.attempt(ps.executeUpdate()))
+
+    def update(psc: Connection => Task[PreparedStatement]): Task[Int] =
+      execute(psc(conn))(ps => Task.attempt(ps.executeUpdate()))
 
     private def execute[A](sqlString: String, args: Seq[Argument])(f: PreparedStatement => Task[A]): Task[A] =
       execute(createPreparedStatement(sqlString, args))(f)
@@ -213,6 +280,18 @@ object JdbcSupport:
         manageRs.flatMap { rs =>
           Task.attempt {
             Iterator.from(1).takeWhile(_ => rs.next).map(idx => rowMapper(rs, idx)).toSeq // 1-based?
+          }
+        }
+      }
+
+    private def queryForSingleResult[A](ps: PreparedStatement, resultSetExtractor: ResultSet => A): Task[A] =
+      // Database query is run in "acquire ResultSet" step. Is that ok?
+      val manageRs: ScopedTask[ResultSet] =
+        ZIO.acquireRelease(Task.attempt(ps.executeQuery()))(rs => Task.succeed(rs.close()))
+      ZIO.scoped {
+        manageRs.flatMap { rs =>
+          Task.attempt {
+            resultSetExtractor(rs)
           }
         }
       }
