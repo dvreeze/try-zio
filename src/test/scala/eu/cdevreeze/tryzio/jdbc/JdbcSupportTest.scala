@@ -71,6 +71,13 @@ object JdbcSupportTest extends DefaultRunnableSpec:
             .tap(res => printLine(s"Users: $res"))
         } yield assert(result.map(_.host).distinct)(equalTo(Seq("%", "localhost")))
       },
+      test("Querying for users the verbose way succeeds") {
+        for {
+          result <- getDataSource()
+            .flatMap(ds => getUsersTheVerboseWay(ds))
+            .tap(res => printLine(s"Users: $res"))
+        } yield assert(result.map(_.host).distinct)(equalTo(Seq("%", "localhost")))
+      },
       test("Querying multiple times simultaneously for users succeeds") {
         for {
           multipleResults <- getDataSource()
@@ -132,6 +139,14 @@ object JdbcSupportTest extends DefaultRunnableSpec:
         Iterator.from(1).takeWhile(_ => rs.next).map(_ => User(rs.getString(1), rs.getString(2))).toSeq
       }
   end getUsersTheHardWay
+
+  private def getUsersTheVerboseWay(ds: DataSource): Task[Seq[User]] =
+    using(ds)
+      .execute { conn =>
+        using(conn)
+          .query("select host, user from user", Seq.empty) { (rs, _) => User(rs.getString(1), rs.getString(2)) }
+      }
+  end getUsersTheVerboseWay
 
   private def getSomeTimezones(timezoneLikeString: String, ds: DataSource): Task[Seq[Timezone]] =
     val sql =
