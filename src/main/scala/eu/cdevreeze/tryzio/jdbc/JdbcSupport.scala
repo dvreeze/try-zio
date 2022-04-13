@@ -19,6 +19,8 @@ package eu.cdevreeze.tryzio.jdbc
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
+import java.sql.Time
+import java.sql.Timestamp
 import java.sql.Types
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -81,7 +83,8 @@ object JdbcSupport:
         case Connection.TRANSACTION_REPEATABLE_READ  => IsolationLevel.RepeatableRead
         case Connection.TRANSACTION_SERIALIZABLE     => IsolationLevel.Serializable
 
-  // Far from complete at the moment, such as missing support for date-time arguments
+  // Far from complete at the moment
+  // For generic SQL types, aka JDBC types, see class java.sql.Types
   enum Argument(val arg: Any):
     case StringArg(override val arg: String) extends Argument(arg)
     case BigDecimalArg(override val arg: BigDecimal) extends Argument(arg)
@@ -93,6 +96,9 @@ object JdbcSupport:
     case NullArg(val sqlType: Int) extends Argument(None)
     case AnyRefArg(override val arg: AnyRef, val sqlType: Int) extends Argument(arg)
     case ShortArg(override val arg: Short) extends Argument(arg)
+    case DateArg(override val arg: java.sql.Date) extends Argument(arg)
+    case TimeArg(override val arg: Time) extends Argument(arg)
+    case TimestampArg(override val arg: Timestamp) extends Argument(arg)
 
     def applyTo(ps: PreparedStatement, idx: Int): Unit =
       this match
@@ -106,6 +112,9 @@ object JdbcSupport:
         case NullArg(sqlType)      => ps.setNull(idx, sqlType)
         case AnyRefArg(v, sqlType) => ps.setObject(idx, v, sqlType)
         case ShortArg(v)           => ps.setShort(idx, v)
+        case DateArg(v)            => ps.setDate(idx, v)
+        case TimeArg(v)            => ps.setTime(idx, v)
+        case TimestampArg(v)       => ps.setTimestamp(idx, v)
 
   end Argument
 
@@ -290,9 +299,7 @@ object JdbcSupport:
         ZIO.acquireRelease(Task.attempt(ps.executeQuery()))(rs => Task.succeed(rs.close()))
       ZIO.scoped {
         manageRs.flatMap { rs =>
-          Task.attempt {
-            resultSetExtractor(rs)
-          }
+          Task.attempt { resultSetExtractor(rs) }
         }
       }
   end UsingConnection
