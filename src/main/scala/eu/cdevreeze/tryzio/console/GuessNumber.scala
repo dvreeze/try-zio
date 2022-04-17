@@ -27,7 +27,7 @@ import zio.Console.*
  */
 object GuessNumber extends ZIOAppDefault:
 
-  def run: RIO[ZEnv, Boolean] =
+  def run: Task[Boolean] =
     val getInitialAttemptNumber: UIO[Ref[Int]] = Ref.make(0)
     def getNextAttemptNumber(ref: Ref[Int]): UIO[Ref[Int]] = ref.update(_ + 1) *> IO.succeed(ref)
 
@@ -37,8 +37,8 @@ object GuessNumber extends ZIOAppDefault:
     } yield b
   end run
 
-  private def guessOnce(attempt: Int): RIO[ZEnv, Boolean] =
-    val getRandomNumber: URIO[Random, Int] = Random.nextIntBetween(0, 10 + 1)
+  private def guessOnce(attempt: Int): Task[Boolean] =
+    val getRandomNumber: UIO[Int] = Random.nextIntBetween(0, 10 + 1)
     for {
       num <- getRandomNumber
       _ <- printLine("")

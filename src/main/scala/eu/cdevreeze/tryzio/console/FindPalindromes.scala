@@ -35,8 +35,8 @@ object FindPalindromes extends ZIOAppDefault:
 
   // Below, "running" the stream is safe, returning a ZIO
 
-  def run: ZIO[ZEnv & ZIOAppArgs, Throwable, Seq[String]] =
-    val argsGetter: ZIO[ZEnv & ZIOAppArgs, Throwable, Chunk[String]] = FindPalindromes.validateEnv(getArgs)
+  def run: ZIO[ZIOAppArgs, Throwable, Seq[String]] =
+    val argsGetter: ZIO[ZIOAppArgs, Throwable, Chunk[String]] = getArgs
     for {
       args <- argsGetter
       path <- ZIO.attempt(args.head).tapError(_ => printLine("Missing arg (input file)"))
@@ -46,7 +46,7 @@ object FindPalindromes extends ZIOAppDefault:
     } yield result
   end run
 
-  def run(f: File): Task[Seq[String]] =
+  def run(f: => File): Task[Seq[String]] =
     IO.attempt(Source.fromFile(f)(Codec.UTF8)).acquireReleaseWith(src => IO.succeed(src.close())) { src =>
       val words: ZStream[Any, Throwable, String] = ZStream.fromIterator(src.getLines())
       val palindromes = words.filterZIO(isPalindrome).filter(_.lengthIs >= 2)

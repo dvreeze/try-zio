@@ -29,7 +29,7 @@ import zio.Console.printLine
 import zio.Task
 import zio.ZIO
 import zio.test.Assertion.*
-import zio.test.DefaultRunnableSpec
+import zio.test.ZIOSpecDefault
 import zio.test.assert
 
 /**
@@ -45,7 +45,7 @@ import zio.test.assert
  * @author
  *   Chris de Vreeze
  */
-object JdbcSupportTest extends DefaultRunnableSpec:
+object JdbcSupportTest extends ZIOSpecDefault:
 
   import JdbcSupport.*
 

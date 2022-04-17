@@ -28,7 +28,7 @@ import zio.Console.*
  */
 object FindPrimeFactors extends ZIOAppDefault:
 
-  def run: RIO[ZEnv, Unit] =
+  def run: Task[Unit] =
     for {
       _ <- printLine("Enter an integer number >= 2:")
       num <- readLine

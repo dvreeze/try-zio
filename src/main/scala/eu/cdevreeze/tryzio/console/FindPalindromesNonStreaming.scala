@@ -32,8 +32,8 @@ import zio.Console.*
  */
 object FindPalindromesNonStreaming extends ZIOAppDefault:
 
-  def run: ZIO[ZEnv & ZIOAppArgs, Throwable, Seq[String]] =
-    val argsGetter: ZIO[ZEnv & ZIOAppArgs, Throwable, Chunk[String]] = FindPalindromesNonStreaming.validateEnv(getArgs)
+  def run: ZIO[ZIOAppArgs, Throwable, Seq[String]] =
+    val argsGetter: ZIO[ZIOAppArgs, Throwable, Chunk[String]] = getArgs
     for {
       args <- argsGetter
       path <- ZIO.attempt(args.head).tapError(_ => printLine("Missing arg (input file)"))
@@ -43,7 +43,7 @@ object FindPalindromesNonStreaming extends ZIOAppDefault:
     } yield result
   end run
 
-  def run(f: File): Task[Seq[String]] =
+  def run(f: => File): Task[Seq[String]] =
     IO.attempt(Source.fromFile(f)(Codec.UTF8)).acquireReleaseWith(src => IO.succeed(src.close())) { src =>
       val getWords: Task[Seq[String]] =
         ZIO.attempt(src.getLines.toSeq).flatMap(lines => ZIO.collectAll(lines.map(IO.succeed)))

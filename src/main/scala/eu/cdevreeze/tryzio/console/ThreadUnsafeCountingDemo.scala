@@ -40,7 +40,7 @@ object ThreadUnsafeCountingDemo extends ZIOAppDefault:
 
   private val n = 1000000
 
-  def run: ZIO[ZEnv, Throwable, Unit] =
+  def run: Task[Unit] =
     for {
       _ <- printLine("")
       _ <- printLine(s"Counting very unsafe counter $n times (using neither volatile nor locking) ...")

@@ -46,9 +46,9 @@ object PrimeFactorsTestClient extends ZIOAppDefault:
 
   private val env = ChannelFactory.auto ++ EventLoopGroup.auto()
 
-  def run: URIO[ZEnv & ZIOAppArgs, ExitCode] =
-    val argsGetter: ZIO[ZEnv & ZIOAppArgs, Throwable, Chunk[String]] = PrimeFactorsTestClient.validateEnv(getArgs)
-    val configGetter: URIO[ZEnv & ZIOAppArgs, Config] = argsGetter.flatMap { args =>
+  def run: URIO[ZIOAppArgs, ExitCode] =
+    val argsGetter: ZIO[ZIOAppArgs, Throwable, Chunk[String]] = getArgs
+    val configGetter: URIO[ZIOAppArgs, Config] = argsGetter.flatMap { args =>
       ZIO.attempt {
         val host = args.headOption.getOrElse(defaultHost)
         val port = args.drop(1).headOption.getOrElse(defaultPort.toString).toIntOption.getOrElse(defaultPort)
@@ -58,7 +58,7 @@ object PrimeFactorsTestClient extends ZIOAppDefault:
       }
     }.orDie
 
-    val getStringResponses: RIO[ZEnv & ZIOAppArgs & ChannelFactory & EventLoopGroup, Seq[String]] =
+    val getStringResponses: RIO[ZIOAppArgs & ChannelFactory & EventLoopGroup, Seq[String]] =
       for {
         cfg <- configGetter
         numbers <- IO.attempt(cfg.minNumber.to(cfg.maxNumber))

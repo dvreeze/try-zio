@@ -40,10 +40,10 @@ object PrimesServer extends ZIOAppDefault:
 
   private val defaultPort = 8080
 
-  private def showThread(url: String): RIO[Console, Unit] =
+  private def showThread(url: String): Task[Unit] =
     printLine(s"Current thread: ${Thread.currentThread()}. URL: $url")
 
-  val httpApp: HttpApp[Console, Nothing] = Http.collectZIO[Request] {
+  val httpApp: HttpApp[Any, Nothing] = Http.collectZIO[Request] {
     case req @ Method.GET -> !! / "primes" / number =>
       val getOptNum: Task[Option[BigInt]] = IO.attempt(BigInt(number)).asSome
 
@@ -78,15 +78,15 @@ object PrimesServer extends ZIOAppDefault:
         .orDie
   }
 
-  def run: URIO[ZEnv & ZIOAppArgs, ExitCode] =
-    val argsGetter: ZIO[ZEnv & ZIOAppArgs, Throwable, Chunk[String]] = PrimesServer.validateEnv(getArgs)
-    val portGetter: URIO[ZEnv & ZIOAppArgs, Int] = argsGetter
+  def run: URIO[ZIOAppArgs, ExitCode] =
+    val argsGetter: URIO[ZIOAppArgs, Chunk[String]] = getArgs
+    val portGetter: URIO[ZIOAppArgs, Int] = argsGetter
       .flatMap { args =>
         ZIO.attempt(args.headOption.getOrElse(defaultPort.toString).toInt)
       }
       .catchAll(_ => IO.succeed(defaultPort))
 
-    def printServerStarted(port: Int): ZIO[Console, IOException, Unit] = printLine(s"Server started on port $port")
+    def printServerStarted(port: Int): ZIO[Any, IOException, Unit] = printLine(s"Server started on port $port")
 
     val threadCount: Int = Try(java.lang.Runtime.getRuntime.availableProcessors()).getOrElse(2)
 
@@ -95,9 +95,9 @@ object PrimesServer extends ZIOAppDefault:
         .withPort(port)
         .make
         .pipe { startZIO =>
-          ZIO.scoped[Console & EventLoopGroup & ServerChannelFactory]((startZIO <* printServerStarted(port)) *> ZIO.never)
+          ZIO.scoped[EventLoopGroup & ServerChannelFactory]((startZIO <* printServerStarted(port)) *> ZIO.never)
         }
-        .provideCustomLayer(ServerChannelFactory.auto ++ EventLoopGroup.auto(threadCount))
+        .provideSomeLayer(ServerChannelFactory.auto ++ EventLoopGroup.auto(threadCount))
         .exitCode
     }
   end run

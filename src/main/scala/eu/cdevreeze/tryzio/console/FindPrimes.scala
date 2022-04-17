@@ -28,7 +28,7 @@ import zio.Console.*
  */
 object FindPrimes extends ZIOAppDefault:
 
-  def run: RIO[ZEnv, Unit] =
+  def run: Task[Unit] =
     for {
       _ <- printLine("Enter an integer number:")
       num <- readLine.flatMap(n => IO.attempt(BigInt(n)).tapError(n => printLine(s"Not an integer number: $n")))

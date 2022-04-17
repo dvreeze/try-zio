@@ -24,7 +24,7 @@ import zio.UIO
 import zio.ZIO
 import zio.stream.ZStream
 import zio.test.Assertion.*
-import zio.test.DefaultRunnableSpec
+import zio.test.ZIOSpecDefault
 import zio.test.Gen
 import zio.test.Sample
 import zio.test.assert
@@ -38,7 +38,7 @@ import zio.test.suite
  * @author
  *   Chris de Vreeze
  */
-object PrimesTest extends DefaultRunnableSpec:
+object PrimesTest extends ZIOSpecDefault:
 
   // PrimesTest is a singleton object, not a class, or else it will not be seen as test.
 
