@@ -29,8 +29,9 @@ ThisBuild / publishTo := {
 ThisBuild / pomExtra := pomData
 ThisBuild / pomIncludeRepository := { _ => false }
 
-val zioVersion = "2.0.0-RC4"
-val zioHttpVersion = "2.0.0-RC6"
+val zioVersion = "2.0.0-RC5"
+val zioJsonVersion = "0.3.0-RC7"
+val zioHttpVersion = "2.0.0-RC7"
 val testContainersVersion = "1.16.3"
 
 ThisBuild / libraryDependencies += "dev.zio" %% "zio" % zioVersion
@@ -40,6 +41,8 @@ ThisBuild / libraryDependencies += "dev.zio" %% "zio-test-sbt" % zioVersion % Te
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-test-magnolia" % zioVersion % Test
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-test-junit" % zioVersion % Test
 
+ThisBuild / libraryDependencies += "dev.zio" %% "zio-json" % zioJsonVersion
+
 ThisBuild / libraryDependencies += "io.d11" %% "zhttp" % zioHttpVersion
 ThisBuild / libraryDependencies += "io.d11" %% "zhttp-test" % zioHttpVersion % Test
 
@@ -48,10 +51,10 @@ ThisBuild / libraryDependencies += "javax.servlet" % "servlet-api" % "3.0-alpha-
 ThisBuild / libraryDependencies += "org.apache.tomcat.embed" % "tomcat-embed-core" % "10.1.0-M14"
 
 ThisBuild / libraryDependencies += "org.testcontainers" % "mysql" % testContainersVersion % Test
-ThisBuild / libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.28" % Test
-ThisBuild / libraryDependencies += "com.zaxxer" % "HikariCP" % "5.0.1" % Test // requires Java 11+
+ThisBuild / libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.28"
+ThisBuild / libraryDependencies += "com.zaxxer" % "HikariCP" % "5.0.1" // requires Java 11+
 
-ThisBuild / libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.11" % Test
+ThisBuild / libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.11"
 
 ThisBuild / testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 
