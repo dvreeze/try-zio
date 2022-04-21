@@ -16,6 +16,10 @@
 
 package eu.cdevreeze.tryzio.wordpress
 
+import java.time.Instant
+
+import scala.annotation.targetName
+
 import zio.json.*
 
 /**
@@ -46,5 +50,71 @@ object model:
   object TermTaxonomy:
     given decoder: JsonDecoder[TermTaxonomy] = DeriveJsonDecoder.gen[TermTaxonomy]
     given encoder: JsonEncoder[TermTaxonomy] = DeriveJsonEncoder.gen[TermTaxonomy]
+
+  enum PostStatus(val stringValue: String):
+    case Draft extends PostStatus("draft")
+    case Publish extends PostStatus("publish")
+    case Unknown extends PostStatus("?")
+
+  object PostStatus:
+    def parse(s: String): PostStatus =
+      PostStatus.values.find(_.stringValue == s).getOrElse(sys.error(s"Unknown PostStatus case: '$s'"))
+    given decoder: JsonDecoder[PostStatus] = JsonDecoder[String].map(PostStatus.parse(_))
+    given encoder: JsonEncoder[PostStatus] = JsonEncoder[String].contramap(_.stringValue)
+
+  enum CommentStatus(val stringValue: String):
+    case Open extends CommentStatus("open")
+    case Closed extends CommentStatus("closed")
+    case Unknown extends CommentStatus("?")
+
+  object CommentStatus:
+    def parse(s: String): CommentStatus =
+      CommentStatus.values.find(_.stringValue == s).getOrElse(sys.error(s"Unknown CommentStatus case: '$s'"))
+    given decoder: JsonDecoder[CommentStatus] = JsonDecoder[String].map(CommentStatus.parse(_))
+    given encoder: JsonEncoder[CommentStatus] = JsonEncoder[String].contramap(_.stringValue)
+
+  enum PostType(val stringValue: String):
+    case Page extends PostType("page")
+    case Post extends PostType("post")
+    case WpGlobalStyles extends PostType("wp_global_styles")
+    case Unknown extends PostType("?")
+
+  object PostType:
+    def parse(s: String): PostType =
+      PostType.values.find(_.stringValue == s).getOrElse(sys.error(s"Unknown PostType case: '$s'"))
+    given decoder: JsonDecoder[PostType] = JsonDecoder[String].map(PostType.parse(_))
+    given encoder: JsonEncoder[PostType] = JsonEncoder[String].contramap(_.stringValue)
+
+  final case class Post(
+      postId: Long,
+      postAuthorOption: Option[Post.User],
+      postDate: Instant,
+      postContentOption: Option[String], // optional, to leave option open to leave it out
+      postTitle: String,
+      postExcerpt: String,
+      postStatus: PostStatus,
+      commentStatus: CommentStatus,
+      pingStatus: String,
+      postName: String, // post password left out
+      toPing: String,
+      pinged: String,
+      postModified: Instant,
+      postContentFilteredOption: Option[String], // optional, to leave option open to leave it out
+      children: Seq[Post],
+      guid: String,
+      menuOrder: Int,
+      postType: PostType,
+      postMimeType: String,
+      commentCount: Int,
+      metaData: Map[String, String]
+  )
+
+  object Post:
+    final case class User(userId: Long, userLogin: String, userEmail: String, displayName: String)
+    object User:
+      given decoder: JsonDecoder[User] = DeriveJsonDecoder.gen[User]
+      given encoder: JsonEncoder[User] = DeriveJsonEncoder.gen[User]
+    given decoder: JsonDecoder[Post] = DeriveJsonDecoder.gen[Post]
+    given encoder: JsonEncoder[Post] = DeriveJsonEncoder.gen[Post]
 
 end model
