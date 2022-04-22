@@ -65,12 +65,10 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
       |    u.user_login,
       |    u.user_email,
       |    u.display_name,
-      |    JSON_OBJECTAGG(pm.meta_key, pm.meta_value)
+      |    JSON_OBJECTAGG(COALESCE(pm.meta_key, ""), COALESCE(pm.meta_value, ""))
       |  from wp_posts p
       |  left join wp_users u on (p.post_author = u.id)
       |  left join wp_postmeta pm on (p.id = pm.post_id)
-      | where pm.meta_key is not null
-      |   and pm.meta_value is not null
       | group by p.id
       |""".stripMargin
 
@@ -99,7 +97,7 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
       userLoginOpt = emptyToNone(rs.getString(21)),
       userEmailOpt = emptyToNone(rs.getString(22)),
       userDisplayNameOpt = emptyToNone(rs.getString(23)),
-      postMetaJsonString = rs.getString(24)
+      postMeta = JsonDecoder[Map[String, String]].decodeJson(rs.getString(24)).getOrElse(Map.empty)
     )
 
   def filterPosts(p: Post => Task[Boolean]): Task[Seq[Post]] =
@@ -152,7 +150,7 @@ object PostRepoImpl:
       userLoginOpt: Option[String],
       userEmailOpt: Option[String],
       userDisplayNameOpt: Option[String],
-      postMetaJsonString: String
+      postMeta: Map[String, String]
   ):
     def toPostWithoutChildren: Post =
       Post(
@@ -178,7 +176,7 @@ object PostRepoImpl:
         postType = postType,
         postMimeType = postMimeType,
         commentCount = commentCount,
-        metaData = JsonDecoder[Map[String, String]].decodeJson(postMetaJsonString).getOrElse(Map.empty)
+        metaData = postMeta.filter { (k, v) => k.nonEmpty && v.nonEmpty }
       )
 
   private object PostRow:
