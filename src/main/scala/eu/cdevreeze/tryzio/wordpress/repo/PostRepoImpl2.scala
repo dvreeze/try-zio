@@ -27,7 +27,6 @@ import eu.cdevreeze.tryzio.wordpress.model.CommentStatus
 import eu.cdevreeze.tryzio.wordpress.model.Post
 import eu.cdevreeze.tryzio.wordpress.model.PostStatus
 import eu.cdevreeze.tryzio.wordpress.model.PostType
-import eu.cdevreeze.tryzio.wordpress.repo.PostRepoImpl2.MainPostData
 import eu.cdevreeze.tryzio.wordpress.repo.PostRepoImpl2.PostRow
 import zio.*
 import zio.json.*
@@ -64,13 +63,16 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
       |      "menuOrder", p.menu_order,
       |      "postType", p.post_type,
       |      "postMimeType", p.post_mime_type,
-      |      "commentCount", p.comment_count
-      |    ),
-      |    u.id,
-      |    u.user_login,
-      |    u.user_email,
-      |    u.display_name,
-      |    JSON_OBJECTAGG(COALESCE(pm.meta_key, ""), COALESCE(pm.meta_value, ""))
+      |      "commentCount", p.comment_count,
+      |      "postAuthorOption", IF(p.post_author = 0, null, JSON_OBJECT(
+      |          "userId", u.id,
+      |          "userLogin", u.user_login,
+      |          "userEmail", u.user_email,
+      |          "displayName", u.display_name
+      |        )
+      |      ),
+      |      "postMeta", JSON_OBJECTAGG(COALESCE(pm.meta_key, ""), COALESCE(pm.meta_value, ""))
+      |    )
       |  from wp_posts p
       |  left join wp_users u on (p.post_author = u.id)
       |  left join wp_postmeta pm on (p.id = pm.post_id)
@@ -78,14 +80,7 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
       |""".stripMargin
 
   private def mapPostRow(rs: ResultSet, idx: Int): PostRow =
-    PostRow(
-      mainPostData = JsonDecoder[MainPostData].decodeJson(rs.getString(1)).fold(sys.error, identity),
-      userIdOpt = zeroToNone(rs.getLong(2)),
-      userLoginOpt = emptyToNone(rs.getString(3)),
-      userEmailOpt = emptyToNone(rs.getString(4)),
-      userDisplayNameOpt = emptyToNone(rs.getString(5)),
-      postMeta = JsonDecoder[Map[String, String]].decodeJson(rs.getString(6)).getOrElse(Map.empty)
-    )
+    JsonDecoder[PostRow].decodeJson(rs.getString(1)).fold(sys.error, identity)
 
   def filterPosts(p: Post => Task[Boolean]): Task[Seq[Post]] =
     // Inefficient
@@ -108,12 +103,10 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
     // Very inefficient
     filterPosts(_ => IO.succeed(true)).map(_.find(_.postName == name))
 
-  private def zeroToNone(v: Long): Option[Long] = if v == 0 then None else Some(v)
-  private def emptyToNone(v: String): Option[String] = if v.isEmpty then None else Some(v)
-
 object PostRepoImpl2:
 
-  private case class MainPostData(
+  // PostRow knows its parent, if any, whereas Post contains a children property
+  private case class PostRow(
       postId: Long,
       postDate: Instant,
       postContentOption: Option[String],
@@ -132,65 +125,56 @@ object PostRepoImpl2:
       menuOrder: Int,
       postType: PostType,
       postMimeType: String,
-      commentCount: Int
-  )
-
-  private given decoder: JsonDecoder[MainPostData] = DeriveJsonDecoder.gen[MainPostData]
-  private given encoder: JsonEncoder[MainPostData] = DeriveJsonEncoder.gen[MainPostData]
-
-  private case class PostRow(
-      mainPostData: MainPostData,
-      userIdOpt: Option[Long],
-      userLoginOpt: Option[String],
-      userEmailOpt: Option[String],
-      userDisplayNameOpt: Option[String],
+      commentCount: Int,
+      postAuthorOption: Option[Post.User],
       postMeta: Map[String, String]
   ):
     def toPostWithoutChildren: Post =
       Post(
-        postId = mainPostData.postId,
-        postAuthorOption = userIdOpt.map { userId =>
-          Post.User(userId, userLoginOpt.getOrElse(""), userEmailOpt.getOrElse(""), userDisplayNameOpt.getOrElse(""))
-        },
-        postDate = mainPostData.postDate,
-        postContentOption = mainPostData.postContentOption,
-        postTitle = mainPostData.postTitle,
-        postExcerpt = mainPostData.postExcerpt,
-        postStatus = mainPostData.postStatus,
-        commentStatus = mainPostData.commentStatus,
-        pingStatus = mainPostData.pingStatus,
-        postName = mainPostData.postName,
-        toPing = mainPostData.toPing,
-        pinged = mainPostData.pinged,
-        postModified = mainPostData.postModified,
-        postContentFilteredOption = mainPostData.postContentFilteredOption,
+        postId = postId,
+        postAuthorOption = postAuthorOption,
+        postDate = postDate,
+        postContentOption = postContentOption,
+        postTitle = postTitle,
+        postExcerpt = postExcerpt,
+        postStatus = postStatus,
+        commentStatus = commentStatus,
+        pingStatus = pingStatus,
+        postName = postName,
+        toPing = toPing,
+        pinged = pinged,
+        postModified = postModified,
+        postContentFilteredOption = postContentFilteredOption,
         children = Seq.empty,
-        guid = mainPostData.guid,
-        menuOrder = mainPostData.menuOrder,
-        postType = mainPostData.postType,
-        postMimeType = mainPostData.postMimeType,
-        commentCount = mainPostData.commentCount,
+        guid = guid,
+        menuOrder = menuOrder,
+        postType = postType,
+        postMimeType = postMimeType,
+        commentCount = commentCount,
         metaData = postMeta.filter { (k, v) => k.nonEmpty && v.nonEmpty }
       )
 
   private object PostRow:
     def toPosts(rows: Seq[PostRow]): Seq[Post] =
       val postParents: Seq[(Long, Option[Long])] =
-        rows.map { row => row.mainPostData.postId -> row.mainPostData.parentOpt }
+        rows.map { row => row.postId -> row.parentOpt }
       val postChildren: Map[Long, Seq[Long]] =
         postParents.collect { case (postId, Some(parent)) => parent -> postId }.groupMap(_._1)(_._2)
-      val rowsById: Map[Long, PostRow] = rows.map(r => r.mainPostData.postId -> r).toMap
+      val rowsById: Map[Long, PostRow] = rows.map(r => r.postId -> r).toMap
 
       // Recursive
       def toPost(row: PostRow): Post =
         val children: Seq[Post] =
           postChildren
-            .getOrElse(row.mainPostData.postId, Seq.empty)
+            .getOrElse(row.postId, Seq.empty)
             .map(childId => toPost(rowsById(childId)))
         row.toPostWithoutChildren.copy(children = children)
 
       rows.map(toPost)
     end toPosts
+
+    given decoder: JsonDecoder[PostRow] = DeriveJsonDecoder.gen[PostRow]
+    given encoder: JsonEncoder[PostRow] = DeriveJsonEncoder.gen[PostRow]
 
   end PostRow
 
