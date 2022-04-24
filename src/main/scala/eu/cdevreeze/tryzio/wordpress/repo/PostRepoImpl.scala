@@ -39,8 +39,11 @@ import zio.json.*
  */
 final class PostRepoImpl(val conn: Connection) extends PostRepo:
 
-  private val basePostSql =
+  // Common Table Expression for the unfiltered Post rows
+  private val basePostCte =
     """
+      |posts as
+      |(
       |select
       |    p.id,
       |    p.post_date_gmt,
@@ -61,7 +64,7 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
       |    p.post_type,
       |    p.post_mime_type,
       |    p.comment_count,
-      |    u.id,
+      |    u.id as user_id,
       |    u.user_login,
       |    u.user_email,
       |    u.display_name,
@@ -70,7 +73,26 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
       |  left join wp_users u on (p.post_author = u.id)
       |  left join wp_postmeta pm on (p.id = pm.post_id)
       | group by p.id
+      |)
       |""".stripMargin
+
+  // Creates a Common Table Expression for all descendant-or-self Post rows of the result of the given CTE
+  private def createDescendantOrSelfPostIdsCte(startPostIdsCteName: String): String =
+    s"""
+       |post_tree (post_id, post_name, parent_id) as
+       |(
+       |  (select id, post_name, post_parent from wp_posts where id in (select * from $startPostIdsCteName))
+       |  union all
+       |  (select p.id, p.post_name, p.post_parent from post_tree join wp_posts p on post_tree.post_id = p.post_parent)
+       |)
+       |""".stripMargin
+
+  private def createFullQuery(ctes: Seq[String], query: String): String =
+    s"""
+       |with recursive
+       |${ctes.mkString(",\n")}
+       |$query
+       |""".stripMargin.trim.replace("\n\n", "\n")
 
   private def mapPostRow(rs: ResultSet, idx: Int): PostRow =
     PostRow(
@@ -102,7 +124,7 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
 
   def filterPosts(p: Post => Task[Boolean]): Task[Seq[Post]] =
     // Inefficient
-    val sql = basePostSql
+    val sql = createFullQuery(Seq(basePostCte), "select * from posts")
     for {
       rows <- using(conn).query(sql, Seq.empty)(mapPostRow)
       posts <- ZIO.attempt(PostRow.toPosts(rows))
@@ -114,12 +136,40 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
     filterPosts(p).map(_.map(_.copy(postContentOption = None).copy(postContentFilteredOption = None)))
 
   def findPost(postId: Long): Task[Option[Post]] =
-    // Very inefficient
-    filterPosts(_ => IO.succeed(true)).map(_.find(_.postId == postId))
+    val startPostIdCte =
+      "post_ids as (select id from wp_posts where id = ?)"
+    val recursivePostIdsCte = createDescendantOrSelfPostIdsCte("post_ids")
+    val sql = createFullQuery(
+      Seq(startPostIdCte, recursivePostIdsCte, basePostCte),
+      "select * from posts where id in (select post_id from post_tree)"
+    )
+
+    val filteredPosts =
+      for {
+        rows <- using(conn).query(sql, Seq(Argument.LongArg(postId)))(mapPostRow)
+        posts <- ZIO.attempt(PostRow.toPosts(rows))
+      } yield posts
+
+    filteredPosts.map(_.find(_.postId == postId))
+  end findPost
 
   def findPostByName(name: String): Task[Option[Post]] =
-    // Very inefficient
-    filterPosts(_ => IO.succeed(true)).map(_.find(_.postName == name))
+    val startPostIdCte =
+      "post_ids as (select id from wp_posts where post_name = ?)"
+    val recursivePostIdsCte = createDescendantOrSelfPostIdsCte("post_ids")
+    val sql = createFullQuery(
+      Seq(startPostIdCte, recursivePostIdsCte, basePostCte),
+      "select * from posts where id in (select post_id from post_tree)"
+    )
+
+    val filteredPosts =
+      for {
+        rows <- using(conn).query(sql, Seq(Argument.StringArg(name)))(mapPostRow)
+        posts <- ZIO.attempt(PostRow.toPosts(rows))
+      } yield posts
+
+    filteredPosts.map(_.find(_.postName == name))
+  end findPostByName
 
   private def zeroToNone(v: Long): Option[Long] = if v == 0 then None else Some(v)
   private def emptyToNone(v: String): Option[String] = if v.isEmpty then None else Some(v)

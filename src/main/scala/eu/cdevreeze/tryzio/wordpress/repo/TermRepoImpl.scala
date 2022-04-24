@@ -61,7 +61,7 @@ final class TermRepoImpl(val conn: Connection) extends TermRepo:
     s"""
       |tt_tree (tt_id, term_id, parent_id) as
       |(
-      |  (select tt.term_taxonomy_id, tt.term_id, tt.parent from wp_term_taxonomy tt where tt.term_taxonomy_id in (select * from $startTermTaxoIdsCteName))
+      |  (select term_taxonomy_id, term_id, parent from wp_term_taxonomy where term_taxonomy_id in (select * from $startTermTaxoIdsCteName))
       |  union all
       |  (select tt.term_taxonomy_id, tt.term_id, tt.parent from tt_tree join wp_term_taxonomy tt on tt_tree.tt_id = tt.parent)
       |)
