@@ -38,8 +38,8 @@ trait TermRepo:
 
   def findTermTaxonomy(termTaxoId: Long): Task[Option[TermTaxonomy]]
 
-  def findTermTaxonomyByTermId(termId: Long): Task[Option[TermTaxonomy]]
+  def findTermTaxonomiesByTermId(termId: Long): Task[Seq[TermTaxonomy]]
 
-  def findTermTaxonomyByTermName(termName: String): Task[Option[TermTaxonomy]]
+  def findTermTaxonomiesByTermName(termName: String): Task[Seq[TermTaxonomy]]
 
 end TermRepo
