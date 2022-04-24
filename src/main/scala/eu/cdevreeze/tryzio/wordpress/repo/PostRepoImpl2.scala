@@ -103,8 +103,11 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
        |""".stripMargin.trim.replace("\n\n", "\n")
 
   private def mapPostRow(rs: ResultSet, idx: Int): PostRow =
-    // Ignoring the first (post_id) column!
-    JsonDecoder[PostRow].decodeJson(rs.getString(2)).fold(sys.error, identity)
+    val postId: Long = rs.getLong(1)
+    JsonDecoder[PostRow]
+      .decodeJson(rs.getString(2))
+      .fold(sys.error, identity)
+      .ensuring(_.postId == postId)
 
   def filterPosts(p: Post => Task[Boolean]): Task[Seq[Post]] =
     // Inefficient
