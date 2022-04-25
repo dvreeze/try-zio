@@ -33,6 +33,7 @@ val zioVersion = "2.0.0-RC5"
 val zioJsonVersion = "0.3.0-RC7"
 val zioHttpVersion = "2.0.0-RC7"
 val testContainersVersion = "1.16.3"
+val jooqVersion = "3.16.6"
 
 ThisBuild / libraryDependencies += "dev.zio" %% "zio" % zioVersion
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-streams" % zioVersion
@@ -53,6 +54,12 @@ ThisBuild / libraryDependencies += "org.apache.tomcat.embed" % "tomcat-embed-cor
 ThisBuild / libraryDependencies += "org.testcontainers" % "mysql" % testContainersVersion % Test
 ThisBuild / libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.28"
 ThisBuild / libraryDependencies += "com.zaxxer" % "HikariCP" % "5.0.1" // requires Java 11+
+
+ThisBuild / libraryDependencies += "org.jooq" % "jooq" % jooqVersion
+ThisBuild / libraryDependencies += "org.jooq" % "jooq-meta" % jooqVersion
+ThisBuild / libraryDependencies += "org.jooq" % "jooq-codegen" % jooqVersion
+// Used by JOOQ
+ThisBuild / libraryDependencies += "org.jetbrains" % "annotations" % "23.0.0"
 
 ThisBuild / libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.11"
 

@@ -25,6 +25,12 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import eu.cdevreeze.tryzio.jdbc.JdbcSupport.Argument.*
 import javax.sql.DataSource
+import org.jooq.*
+import org.jooq.impl.DSL
+import org.jooq.impl.DSL.field
+import org.jooq.impl.DSL.primaryKey
+import org.jooq.impl.DSL.table
+import org.jooq.impl.SQLDataType
 import zio.Console.printLine
 import zio.Task
 import zio.ZIO
@@ -125,13 +131,16 @@ object JdbcSupportTest extends ZIOSpecDefault:
   }
 
   private def getUsers(ds: DataSource): Task[Seq[User]] =
-    using(ds)
-      .query("select host, user from user", Seq.empty) { (rs, _) => User(rs.getString(1), rs.getString(2)) }
+    for {
+      sqlQuery <- Task.attempt(DSL.select(field("host"), field("user")).from(table("user")))
+      result <- using(ds)
+        .query(sqlQuery.getSQL, Seq.empty) { (rs, _) => User(rs.getString(1), rs.getString(2)) }
+    } yield result
   end getUsers
 
   private def getUsersTheHardWay(ds: DataSource): Task[Seq[User]] =
     def createPreparedStatement(conn: Connection): Task[PreparedStatement] =
-      Task.attempt { conn.prepareStatement("select host, user from user") }
+      Task.attempt { conn.prepareStatement(DSL.select(field("host"), field("user")).from(table("user")).getSQL) }
 
     using(ds)
       .queryForSingleResult(createPreparedStatement) { rs =>
@@ -144,58 +153,80 @@ object JdbcSupportTest extends ZIOSpecDefault:
     using(ds)
       .execute { conn =>
         using(conn)
-          .query("select host, user from user", Seq.empty) { (rs, _) => User(rs.getString(1), rs.getString(2)) }
+          .query(DSL.select(field("host"), field("user")).from(table("user")).getSQL, Seq.empty) { (rs, _) =>
+            User(rs.getString(1), rs.getString(2))
+          }
       }
   end getUsersTheVerboseWay
 
   private def getSomeTimezones(timezoneLikeString: String, ds: DataSource): Task[Seq[Timezone]] =
-    val sql =
-      """select t.time_zone_id, tn.name, t.use_leap_seconds
-        |  from time_zone t
-        |  join time_zone_name tn
-        |    on t.time_zone_id = tn.time_zone_id
-        | where tn.name like ?""".stripMargin
+    val sqlQueryTask: Task[Query] = ZIO.attempt {
+      DSL
+        .select(field("t.time_zone_id"), field("tn.name"), field("t.use_leap_seconds"))
+        .from(table("time_zone t"))
+        .join(table("time_zone_name tn"))
+        .on(field("t.time_zone_id").equal(field("tn.time_zone_id")))
+        .where(field("tn.name").like(DSL.`val`("nameArg")))
+    }
 
-    using(ds)
-      .query(sql, Seq(StringArg(timezoneLikeString))) { (rs, _) =>
-        Timezone(rs.getInt(1), rs.getString(2), rs.getString(3).pipe(_ == "Y"))
-      }
+    for {
+      sqlQuery <- sqlQueryTask
+      result <- using(ds)
+        .query(sqlQuery.getSQL, Seq(StringArg(timezoneLikeString))) { (rs, _) =>
+          Timezone(rs.getInt(1), rs.getString(2), rs.getString(3).pipe(_ == "Y"))
+        }
+    } yield result
   end getSomeTimezones
 
   private def createSecondUserTable(ds: DataSource): Task[Unit] =
-    val sql =
-      """create table if not exists user_summary (
-        |  name varchar(255) not null,
-        |  host varchar(255) not null,
-        |  primary key (name, host)
-        |)""".stripMargin
+    val sqlStatTask: Task[CreateTableConstraintStep] = ZIO.attempt {
+      DSL
+        .createTableIfNotExists(table("user_summary"))
+        .column(field("name", classOf[String]), SQLDataType.VARCHAR(255).notNull)
+        .column(field("host", classOf[String]), SQLDataType.VARCHAR(255).notNull)
+        .constraint(primaryKey(field("name"), field("host")))
+    }
 
-    using(ds, IsolationLevel.ReadCommitted)
-      .update(sql, Seq.empty)
-      .unit
+    for {
+      sqlStat <- sqlStatTask
+      _ <- using(ds, IsolationLevel.ReadCommitted)
+        .update(sqlStat.getSQL, Seq.empty)
+        .unit
+    } yield ()
   end createSecondUserTable
 
   private def copyUsers(ds: DataSource): Task[Unit] =
-    val sql1 = "delete from user_summary"
-    val sql2 = "insert into user_summary (name, host) select user, host from user"
+    val sql1Task: Task[Delete[_]] = Task.attempt { DSL.deleteFrom(table("user_summary")) }
+    val sql2Task: Task[Insert[_]] = Task.attempt {
+      DSL
+        .insertInto(table("user_summary"))
+        .columns(field("name"), field("host"))
+        .select(DSL.select(field("user"), field("host")).from(table("user")))
+    }
 
-    using(ds, IsolationLevel.ReadCommitted)
-      .execute { tx =>
-        for {
-          _ <- using(tx.connection).update(sql1, Seq.empty)
-          _ <- using(tx.connection).update(sql2, Seq.empty)
-        } yield ()
-      }
+    for {
+      sql1 <- sql1Task
+      sql2 <- sql2Task
+      _ <- using(ds, IsolationLevel.ReadCommitted)
+        .execute { tx =>
+          for {
+            _ <- using(tx.connection).update(sql1.getSQL, Seq.empty)
+            _ <- using(tx.connection).update(sql2.getSQL, Seq.empty)
+          } yield ()
+        }
+    } yield ()
   end copyUsers
 
   private def getUsersFromSecondUserTable(ds: DataSource): Task[Seq[User]] =
     using(ds, IsolationLevel.ReadCommitted)
-      .query("select host, name from user_summary", Seq.empty) { (rs, _) => User(rs.getString(1), rs.getString(2)) }
+      .query(DSL.select(field("host"), field("name")).from(table("user_summary")).getSQL, Seq.empty) { (rs, _) =>
+        User(rs.getString(1), rs.getString(2))
+      }
   end getUsersFromSecondUserTable
 
   private def dropSecondUserTable(ds: DataSource): Task[Unit] =
     using(ds, IsolationLevel.ReadCommitted)
-      .update("drop table user_summary", Seq.empty)
+      .update(DSL.dropTable(table("user_summary")).getSQL, Seq.empty)
       .unit
   end dropSecondUserTable
 
