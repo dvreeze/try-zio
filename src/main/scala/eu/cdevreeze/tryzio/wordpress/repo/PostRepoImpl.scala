@@ -54,7 +54,8 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
   // Common Table Expression for the unfiltered Post rows
   private val basePostCte: CommonTableExpression[_] =
     DSL
-      .name(DSL.name("posts").unquotedName)
+      .name("posts")
+      .unquotedName
       .as(
         DSL
           .select(
@@ -95,7 +96,8 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
   // TODO Make ID column name explicit (probably as method parameter)
   private def createDescendantOrSelfPostIdsCte(startPostIdsCte: CommonTableExpression[Record1[ULong]]): CommonTableExpression[_] =
     DSL
-      .name(DSL.name("post_tree").unquotedName)
+      .name("post_tree")
+      .unquotedName
       .fields(DSL.name("post_id").unquotedName, DSL.name("post_name").unquotedName, DSL.name("parent_id").unquotedName)
       .as(
         DSL
@@ -158,7 +160,8 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
   def findPost(postId: Long): Task[Option[Post]] =
     val startPostIdCte: CommonTableExpression[Record1[ULong]] =
       DSL
-        .name(DSL.name("post_ids").unquotedName)
+        .name("post_ids")
+        .unquotedName
         .as(
           DSL
             .select(field("id", BIGINTUNSIGNED))
@@ -185,7 +188,8 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
   def findPostByName(name: String): Task[Option[Post]] =
     val startPostIdCte: CommonTableExpression[Record1[ULong]] =
       DSL
-        .name(DSL.name("post_ids").unquotedName)
+        .name("post_ids")
+        .unquotedName
         .as(
           DSL
             .select(field("id", BIGINTUNSIGNED))
