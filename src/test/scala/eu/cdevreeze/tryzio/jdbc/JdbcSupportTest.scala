@@ -27,8 +27,14 @@ import eu.cdevreeze.tryzio.jdbc.JdbcSupport.Argument.*
 import javax.sql.DataSource
 import org.jooq.*
 import org.jooq.impl.DSL
+import org.jooq.impl.DSL.`val`
+import org.jooq.impl.DSL.createTableIfNotExists
+import org.jooq.impl.DSL.deleteFrom
+import org.jooq.impl.DSL.dropTable
 import org.jooq.impl.DSL.field
+import org.jooq.impl.DSL.insertInto
 import org.jooq.impl.DSL.primaryKey
+import org.jooq.impl.DSL.select
 import org.jooq.impl.DSL.table
 import org.jooq.impl.SQLDataType.*
 import zio.Console.printLine
@@ -132,7 +138,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
 
   private def getUsers(ds: DataSource): Task[Seq[User]] =
     for {
-      sqlQuery <- Task.attempt(DSL.select(field("host", VARCHAR), field("user", VARCHAR)).from(table("user")))
+      sqlQuery <- Task.attempt(select(field("host", VARCHAR), field("user", VARCHAR)).from(table("user")))
       result <- using(ds)
         .query(sqlQuery.getSQL, Seq.empty) { (rs, _) => User(rs.getString(1), rs.getString(2)) }
     } yield result
@@ -141,7 +147,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
   private def getUsersTheHardWay(ds: DataSource): Task[Seq[User]] =
     def createPreparedStatement(conn: Connection): Task[PreparedStatement] =
       Task.attempt {
-        conn.prepareStatement(DSL.select(field("host", VARCHAR), field("user", VARCHAR)).from(table("user")).getSQL)
+        conn.prepareStatement(select(field("host", VARCHAR), field("user", VARCHAR)).from(table("user")).getSQL)
       }
 
     using(ds)
@@ -155,7 +161,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
     using(ds)
       .execute { conn =>
         using(conn)
-          .query(DSL.select(field("host", VARCHAR), field("user", VARCHAR)).from(table("user")).getSQL, Seq.empty) { (rs, _) =>
+          .query(select(field("host", VARCHAR), field("user", VARCHAR)).from(table("user")).getSQL, Seq.empty) { (rs, _) =>
             User(rs.getString(1), rs.getString(2))
           }
       }
@@ -163,12 +169,11 @@ object JdbcSupportTest extends ZIOSpecDefault:
 
   private def getSomeTimezones(timezoneLikeString: String, ds: DataSource): Task[Seq[Timezone]] =
     val sqlQueryTask: Task[Query] = ZIO.attempt {
-      DSL
-        .select(field("t.time_zone_id", INTEGER), field("tn.name", VARCHAR), field("t.use_leap_seconds", CHAR(1)))
+      select(field("t.time_zone_id", INTEGER), field("tn.name", VARCHAR), field("t.use_leap_seconds", CHAR(1)))
         .from(table("time_zone t"))
         .join(table("time_zone_name tn"))
         .on(field("t.time_zone_id", INTEGER).equal(field("tn.time_zone_id", INTEGER)))
-        .where(field("tn.name", VARCHAR).like(DSL.`val`("dummyNameArg")))
+        .where(field("tn.name", VARCHAR).like(`val`("dummyNameArg")))
     }
 
     for {
@@ -182,8 +187,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
 
   private def createSecondUserTable(ds: DataSource): Task[Unit] =
     val sqlStatTask: Task[CreateTableConstraintStep] = ZIO.attempt {
-      DSL
-        .createTableIfNotExists(table("user_summary"))
+      createTableIfNotExists(table("user_summary"))
         .column(field("name", VARCHAR), VARCHAR(255).notNull)
         .column(field("host", VARCHAR), VARCHAR(255).notNull)
         .constraint(primaryKey(field("name", VARCHAR), field("host", VARCHAR)))
@@ -198,12 +202,11 @@ object JdbcSupportTest extends ZIOSpecDefault:
   end createSecondUserTable
 
   private def copyUsers(ds: DataSource): Task[Unit] =
-    val sql1Task: Task[Delete[_]] = Task.attempt { DSL.deleteFrom(table("user_summary")) }
+    val sql1Task: Task[Delete[_]] = Task.attempt { deleteFrom(table("user_summary")) }
     val sql2Task: Task[Insert[_]] = Task.attempt {
-      DSL
-        .insertInto(table("user_summary"))
+      insertInto(table("user_summary"))
         .columns(field("name", VARCHAR), field("host", VARCHAR))
-        .select(DSL.select(field("user", VARCHAR), field("host", VARCHAR)).from(table("user")))
+        .select(select(field("user", VARCHAR), field("host", VARCHAR)).from(table("user")))
     }
 
     for {
@@ -221,14 +224,14 @@ object JdbcSupportTest extends ZIOSpecDefault:
 
   private def getUsersFromSecondUserTable(ds: DataSource): Task[Seq[User]] =
     using(ds, IsolationLevel.ReadCommitted)
-      .query(DSL.select(field("host", VARCHAR), field("name", VARCHAR)).from(table("user_summary")).getSQL, Seq.empty) { (rs, _) =>
+      .query(select(field("host", VARCHAR), field("name", VARCHAR)).from(table("user_summary")).getSQL, Seq.empty) { (rs, _) =>
         User(rs.getString(1), rs.getString(2))
       }
   end getUsersFromSecondUserTable
 
   private def dropSecondUserTable(ds: DataSource): Task[Unit] =
     using(ds, IsolationLevel.ReadCommitted)
-      .update(DSL.dropTable(table("user_summary")).getSQL, Seq.empty)
+      .update(dropTable(table("user_summary")).getSQL, Seq.empty)
       .unit
   end dropSecondUserTable
 
