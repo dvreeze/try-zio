@@ -59,7 +59,7 @@ object model:
   object PostStatus:
     def parse(s: String): PostStatus =
       PostStatus.values.find(_.stringValue == s).getOrElse(sys.error(s"Unknown PostStatus case: '$s'"))
-    given decoder: JsonDecoder[PostStatus] = JsonDecoder[String].map(PostStatus.parse(_))
+    given decoder: JsonDecoder[PostStatus] = JsonDecoder[String].map(PostStatus.parse)
     given encoder: JsonEncoder[PostStatus] = JsonEncoder[String].contramap(_.stringValue)
 
   enum CommentStatus(val stringValue: String):
@@ -70,7 +70,7 @@ object model:
   object CommentStatus:
     def parse(s: String): CommentStatus =
       CommentStatus.values.find(_.stringValue == s).getOrElse(sys.error(s"Unknown CommentStatus case: '$s'"))
-    given decoder: JsonDecoder[CommentStatus] = JsonDecoder[String].map(CommentStatus.parse(_))
+    given decoder: JsonDecoder[CommentStatus] = JsonDecoder[String].map(CommentStatus.parse)
     given encoder: JsonEncoder[CommentStatus] = JsonEncoder[String].contramap(_.stringValue)
 
   enum PostType(val stringValue: String):
@@ -82,7 +82,7 @@ object model:
   object PostType:
     def parse(s: String): PostType =
       PostType.values.find(_.stringValue == s).getOrElse(sys.error(s"Unknown PostType case: '$s'"))
-    given decoder: JsonDecoder[PostType] = JsonDecoder[String].map(PostType.parse(_))
+    given decoder: JsonDecoder[PostType] = JsonDecoder[String].map(PostType.parse)
     given encoder: JsonEncoder[PostType] = JsonEncoder[String].contramap(_.stringValue)
 
   final case class Post(

@@ -32,11 +32,9 @@ import eu.cdevreeze.tryzio.wordpress.repo.PostRepoImpl.PostRow
 import org.jooq.CommonTableExpression
 import org.jooq.Query
 import org.jooq.Record1
-import org.jooq.SQLDialect
 import org.jooq.WithStep
 import org.jooq.impl.DSL
 import org.jooq.impl.DSL.field
-import org.jooq.impl.DSL.jsonObjectAgg
 import org.jooq.impl.DSL.table
 import org.jooq.impl.SQLDataType.*
 import org.jooq.types.ULong
