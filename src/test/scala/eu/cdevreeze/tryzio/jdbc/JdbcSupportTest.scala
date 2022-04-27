@@ -30,7 +30,7 @@ import org.jooq.impl.DSL
 import org.jooq.impl.DSL.field
 import org.jooq.impl.DSL.primaryKey
 import org.jooq.impl.DSL.table
-import org.jooq.impl.SQLDataType
+import org.jooq.impl.SQLDataType.*
 import zio.Console.printLine
 import zio.Task
 import zio.ZIO
@@ -132,7 +132,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
 
   private def getUsers(ds: DataSource): Task[Seq[User]] =
     for {
-      sqlQuery <- Task.attempt(DSL.select(field("host"), field("user")).from(table("user")))
+      sqlQuery <- Task.attempt(DSL.select(field("host", VARCHAR), field("user", VARCHAR)).from(table("user")))
       result <- using(ds)
         .query(sqlQuery.getSQL, Seq.empty) { (rs, _) => User(rs.getString(1), rs.getString(2)) }
     } yield result
@@ -140,7 +140,9 @@ object JdbcSupportTest extends ZIOSpecDefault:
 
   private def getUsersTheHardWay(ds: DataSource): Task[Seq[User]] =
     def createPreparedStatement(conn: Connection): Task[PreparedStatement] =
-      Task.attempt { conn.prepareStatement(DSL.select(field("host"), field("user")).from(table("user")).getSQL) }
+      Task.attempt {
+        conn.prepareStatement(DSL.select(field("host", VARCHAR), field("user", VARCHAR)).from(table("user")).getSQL)
+      }
 
     using(ds)
       .queryForSingleResult(createPreparedStatement) { rs =>
@@ -153,7 +155,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
     using(ds)
       .execute { conn =>
         using(conn)
-          .query(DSL.select(field("host"), field("user")).from(table("user")).getSQL, Seq.empty) { (rs, _) =>
+          .query(DSL.select(field("host", VARCHAR), field("user", VARCHAR)).from(table("user")).getSQL, Seq.empty) { (rs, _) =>
             User(rs.getString(1), rs.getString(2))
           }
       }
@@ -162,11 +164,11 @@ object JdbcSupportTest extends ZIOSpecDefault:
   private def getSomeTimezones(timezoneLikeString: String, ds: DataSource): Task[Seq[Timezone]] =
     val sqlQueryTask: Task[Query] = ZIO.attempt {
       DSL
-        .select(field("t.time_zone_id"), field("tn.name"), field("t.use_leap_seconds"))
+        .select(field("t.time_zone_id", INTEGER), field("tn.name", VARCHAR), field("t.use_leap_seconds", CHAR(1)))
         .from(table("time_zone t"))
         .join(table("time_zone_name tn"))
-        .on(field("t.time_zone_id").equal(field("tn.time_zone_id")))
-        .where(field("tn.name").like(DSL.`val`("nameArg")))
+        .on(field("t.time_zone_id", INTEGER).equal(field("tn.time_zone_id", INTEGER)))
+        .where(field("tn.name", VARCHAR).like(DSL.`val`("dummyNameArg")))
     }
 
     for {
@@ -182,9 +184,9 @@ object JdbcSupportTest extends ZIOSpecDefault:
     val sqlStatTask: Task[CreateTableConstraintStep] = ZIO.attempt {
       DSL
         .createTableIfNotExists(table("user_summary"))
-        .column(field("name", classOf[String]), SQLDataType.VARCHAR(255).notNull)
-        .column(field("host", classOf[String]), SQLDataType.VARCHAR(255).notNull)
-        .constraint(primaryKey(field("name"), field("host")))
+        .column(field("name", VARCHAR), VARCHAR(255).notNull)
+        .column(field("host", VARCHAR), VARCHAR(255).notNull)
+        .constraint(primaryKey(field("name", VARCHAR), field("host", VARCHAR)))
     }
 
     for {
@@ -200,8 +202,8 @@ object JdbcSupportTest extends ZIOSpecDefault:
     val sql2Task: Task[Insert[_]] = Task.attempt {
       DSL
         .insertInto(table("user_summary"))
-        .columns(field("name"), field("host"))
-        .select(DSL.select(field("user"), field("host")).from(table("user")))
+        .columns(field("name", VARCHAR), field("host", VARCHAR))
+        .select(DSL.select(field("user", VARCHAR), field("host", VARCHAR)).from(table("user")))
     }
 
     for {
@@ -219,7 +221,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
 
   private def getUsersFromSecondUserTable(ds: DataSource): Task[Seq[User]] =
     using(ds, IsolationLevel.ReadCommitted)
-      .query(DSL.select(field("host"), field("name")).from(table("user_summary")).getSQL, Seq.empty) { (rs, _) =>
+      .query(DSL.select(field("host", VARCHAR), field("name", VARCHAR)).from(table("user_summary")).getSQL, Seq.empty) { (rs, _) =>
         User(rs.getString(1), rs.getString(2))
       }
   end getUsersFromSecondUserTable

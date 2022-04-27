@@ -21,6 +21,7 @@ import java.sql.ResultSet
 import java.time.Instant
 
 import scala.util.Try
+import scala.util.chaining.*
 
 import eu.cdevreeze.tryzio.jdbc.JdbcSupport.*
 import eu.cdevreeze.tryzio.wordpress.model.CommentStatus
@@ -28,6 +29,17 @@ import eu.cdevreeze.tryzio.wordpress.model.Post
 import eu.cdevreeze.tryzio.wordpress.model.PostStatus
 import eu.cdevreeze.tryzio.wordpress.model.PostType
 import eu.cdevreeze.tryzio.wordpress.repo.PostRepoImpl.PostRow
+import org.jooq.CommonTableExpression
+import org.jooq.Query
+import org.jooq.Record1
+import org.jooq.SQLDialect
+import org.jooq.WithStep
+import org.jooq.impl.DSL
+import org.jooq.impl.DSL.field
+import org.jooq.impl.DSL.jsonObjectAgg
+import org.jooq.impl.DSL.table
+import org.jooq.impl.SQLDataType.*
+import org.jooq.types.ULong
 import zio.*
 import zio.json.*
 
@@ -40,59 +52,67 @@ import zio.json.*
 final class PostRepoImpl(val conn: Connection) extends PostRepo:
 
   // Common Table Expression for the unfiltered Post rows
-  private val basePostCte =
-    """
-      |posts as
-      |(
-      |select
-      |    p.id,
-      |    p.post_date_gmt,
-      |    p.post_content,
-      |    p.post_title,
-      |    p.post_excerpt,
-      |    p.post_status,
-      |    p.comment_status,
-      |    p.ping_status,
-      |    p.post_name,
-      |    p.to_ping,
-      |    p.pinged,
-      |    p.post_modified_gmt,
-      |    p.post_content_filtered,
-      |    p.post_parent,
-      |    p.guid,
-      |    p.menu_order,
-      |    p.post_type,
-      |    p.post_mime_type,
-      |    p.comment_count,
-      |    u.id as user_id,
-      |    u.user_login,
-      |    u.user_email,
-      |    u.display_name,
-      |    JSON_OBJECTAGG(COALESCE(pm.meta_key, ""), COALESCE(pm.meta_value, ""))
-      |  from wp_posts p
-      |  left join wp_users u on (p.post_author = u.id)
-      |  left join wp_postmeta pm on (p.id = pm.post_id)
-      | group by p.id
-      |)
-      |""".stripMargin
+  private val basePostCte: CommonTableExpression[_] =
+    DSL
+      .name(DSL.name("posts").unquotedName)
+      .as(
+        DSL
+          .select(
+            field("p.id", BIGINTUNSIGNED),
+            field("p.post_date_gmt", OFFSETDATETIME),
+            field("p.post_content", CLOB),
+            field("p.post_title", CLOB),
+            field("p.post_excerpt", CLOB),
+            field("p.post_status", VARCHAR),
+            field("p.comment_status", VARCHAR),
+            field("p.ping_status", VARCHAR),
+            field("p.post_name", VARCHAR),
+            field("p.to_ping", CLOB),
+            field("p.pinged", CLOB),
+            field("p.post_modified_gmt", OFFSETDATETIME),
+            field("p.post_content_filtered", CLOB),
+            field("p.post_parent", BIGINTUNSIGNED),
+            field("p.guid", VARCHAR),
+            field("p.menu_order", INTEGER),
+            field("p.post_type", VARCHAR),
+            field("p.post_mime_type", VARCHAR),
+            field("p.comment_count", BIGINT),
+            field("u.id", BIGINTUNSIGNED).as("user_id"),
+            field("u.user_login", VARCHAR),
+            field("u.user_email", VARCHAR),
+            field("u.display_name", VARCHAR),
+            DSL.inlined(field("""json_objectagg(coalesce(pm.meta_key, ""), coalesce(pm.meta_value, ""))""", JSON))
+          )
+          .from(table("wp_posts p"))
+          .leftJoin(table("wp_users u"))
+          .on(field("p.post_author", BIGINTUNSIGNED).equal(field("u.id", BIGINTUNSIGNED)))
+          .leftJoin(table("wp_postmeta pm"))
+          .on(field("p.id", BIGINTUNSIGNED).equal(field("pm.post_id", BIGINTUNSIGNED)))
+          .groupBy(field("p.id", BIGINTUNSIGNED))
+      )
 
   // Creates a Common Table Expression for all descendant-or-self Post rows of the result of the given CTE
-  private def createDescendantOrSelfPostIdsCte(startPostIdsCteName: String): String =
-    s"""
-       |post_tree (post_id, post_name, parent_id) as
-       |(
-       |  (select id, post_name, post_parent from wp_posts where id in (select * from $startPostIdsCteName))
-       |  union all
-       |  (select p.id, p.post_name, p.post_parent from post_tree join wp_posts p on post_tree.post_id = p.post_parent)
-       |)
-       |""".stripMargin
+  // TODO Make ID column name explicit (probably as method parameter)
+  private def createDescendantOrSelfPostIdsCte(startPostIdsCte: CommonTableExpression[Record1[ULong]]): CommonTableExpression[_] =
+    DSL
+      .name(DSL.name("post_tree").unquotedName)
+      .fields(DSL.name("post_id").unquotedName, DSL.name("post_name").unquotedName, DSL.name("parent_id").unquotedName)
+      .as(
+        DSL
+          .select(field("id", BIGINTUNSIGNED), field("post_name", VARCHAR), field("post_parent", BIGINTUNSIGNED))
+          .from(table("wp_posts"))
+          .where(field("id", BIGINTUNSIGNED).in(DSL.select(field("id", BIGINTUNSIGNED)).from(startPostIdsCte)))
+          .unionAll(
+            DSL
+              .select(field("p.id", BIGINTUNSIGNED), field("p.post_name", VARCHAR), field("p.post_parent", BIGINTUNSIGNED))
+              .from(table("post_tree"))
+              .join(table("wp_posts p"))
+              .on(field("post_tree.post_id", BIGINTUNSIGNED).equal(field("p.post_parent", BIGINTUNSIGNED)))
+          )
+      )
 
-  private def createFullQuery(ctes: Seq[String], query: String): String =
-    s"""
-       |with recursive
-       |${ctes.mkString(",\n")}
-       |$query
-       |""".stripMargin.trim.replace("\n\n", "\n")
+  private def createFullQuery(ctes: Seq[CommonTableExpression[_]], makeQuery: WithStep => Query): Query =
+    DSL.withRecursive(ctes: _*).pipe(makeQuery)
 
   private def mapPostRow(rs: ResultSet, idx: Int): PostRow =
     PostRow(
@@ -124,9 +144,9 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
 
   def filterPosts(p: Post => Task[Boolean]): Task[Seq[Post]] =
     // Inefficient
-    val sql = createFullQuery(Seq(basePostCte), "select * from posts")
+    val sql = createFullQuery(Seq(basePostCte), _.select().from(table("posts")))
     for {
-      rows <- using(conn).query(sql, Seq.empty)(mapPostRow)
+      rows <- using(conn).query(sql.getSQL, Seq.empty)(mapPostRow)
       posts <- ZIO.attempt(PostRow.toPosts(rows))
       filteredPosts <- ZIO.filter(posts)(p)
     } yield filteredPosts
@@ -136,17 +156,26 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
     filterPosts(p).map(_.map(_.copy(postContentOption = None).copy(postContentFilteredOption = None)))
 
   def findPost(postId: Long): Task[Option[Post]] =
-    val startPostIdCte =
-      "post_ids as (select id from wp_posts where id = ?)"
-    val recursivePostIdsCte = createDescendantOrSelfPostIdsCte("post_ids")
+    val startPostIdCte: CommonTableExpression[Record1[ULong]] =
+      DSL
+        .name(DSL.name("post_ids").unquotedName)
+        .as(
+          DSL
+            .select(field("id", BIGINTUNSIGNED))
+            .from(table("wp_posts"))
+            .where(field("id", BIGINTUNSIGNED).equal(DSL.`val`("dummyIdArg", BIGINTUNSIGNED)))
+        )
+    val recursivePostIdsCte = createDescendantOrSelfPostIdsCte(startPostIdCte)
     val sql = createFullQuery(
       Seq(startPostIdCte, recursivePostIdsCte, basePostCte),
-      "select * from posts where id in (select post_id from post_tree)"
+      _.select()
+        .from(table("posts"))
+        .where(field("id", BIGINTUNSIGNED).in(DSL.select(field("post_id", BIGINTUNSIGNED)).from(table("post_tree"))))
     )
 
     val filteredPosts =
       for {
-        rows <- using(conn).query(sql, Seq(Argument.LongArg(postId)))(mapPostRow)
+        rows <- using(conn).query(sql.getSQL, Seq(Argument.LongArg(postId)))(mapPostRow)
         posts <- ZIO.attempt(PostRow.toPosts(rows))
       } yield posts
 
@@ -154,17 +183,26 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
   end findPost
 
   def findPostByName(name: String): Task[Option[Post]] =
-    val startPostIdCte =
-      "post_ids as (select id from wp_posts where post_name = ?)"
-    val recursivePostIdsCte = createDescendantOrSelfPostIdsCte("post_ids")
+    val startPostIdCte: CommonTableExpression[Record1[ULong]] =
+      DSL
+        .name(DSL.name("post_ids").unquotedName)
+        .as(
+          DSL
+            .select(field("id", BIGINTUNSIGNED))
+            .from(table("wp_posts"))
+            .where(field("post_name", VARCHAR).equal(DSL.`val`("dummyNameArg", VARCHAR)))
+        )
+    val recursivePostIdsCte = createDescendantOrSelfPostIdsCte(startPostIdCte)
     val sql = createFullQuery(
       Seq(startPostIdCte, recursivePostIdsCte, basePostCte),
-      "select * from posts where id in (select post_id from post_tree)"
+      _.select()
+        .from(table("posts"))
+        .where(field("id", BIGINTUNSIGNED).in(DSL.select(field("post_id", BIGINTUNSIGNED)).from(table("post_tree"))))
     )
 
     val filteredPosts =
       for {
-        rows <- using(conn).query(sql, Seq(Argument.StringArg(name)))(mapPostRow)
+        rows <- using(conn).query(sql.getSQL, Seq(Argument.StringArg(name)))(mapPostRow)
         posts <- ZIO.attempt(PostRow.toPosts(rows))
       } yield posts
 
