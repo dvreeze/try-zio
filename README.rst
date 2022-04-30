@@ -2,6 +2,56 @@
 Try-ZIO
 =======
 
+Setup
+=====
+
+This project is about learning `ZIO`_ by doing. It also uses other dependencies, such as a Wordpress
+database, `jOOQ`_ etc.
+
+Before running console programs and tests, and even before compiling, a few steps are needed.
+The idea is to first start a MySQL Docker container, do a "docker exec" to it, and using the mysql
+client create and fill the Wordpress database:
+
+* Navigate to a directory where the data should be stored, and create datadir and shared sub-directories
+* Copy the datadump/wordpress-dump.sql file to the shared sub-directory
+
+Next run some Docker commands:
+
+* sudo docker run --name mysql-wordpress -e MYSQL_ROOT_PASSWORD=root -d -p 3306:3306 \
+    -v $PWD/datadir:/var/lib/mysql -v $PWD/shared:/shared mysql:latest
+* sudo docker exec -it mysql-wordpress bash
+
+Inside that bash session, enter the following commands (entering the password when prompted):
+
+* mysql -p
+* create database wordpress; -- only the first time, if the database does not yet exist
+* exit -- leaving mysql, but staying inside the Docker container
+* mysql -u root -p wordpress < /shared/wordpress-dump.sql
+* mysql -p
+* show databases;
+* use wordpress; -- must exist
+* show tables; -- must have tables
+* select count(*) from wp_posts; -- must be non-zero
+* exit -- leaving mysql, but still inside the Docker container
+* exit -- now no longer connected to the running mysql-wordpress container
+
+If the mysql-wordpress container is stopped, it can be started again, of course. If it is removed,
+it must be created and started again, yet the database data should still be there.
+
+Next, with the mysql-wordpress Docker container running, start an sbt session in a terminal with the
+root of this project as current directory. Invoke the following task inside the sbt session:
+
+* jooqCodegen
+
+This will generate code needed by programs using jOOQ.
+
+TODO Run jooqCodegen automatically as code generation step. See https://www.scala-sbt.org/1.x/docs/Howto-Generating-Files.html.
+
+Now we are set up to run programs, tests, etc.
+
+Learning ZIO
+============
+
 This project is about getting to know `ZIO`_ better (learning by doing).
 
 The ideas behind ZIO are well explained in `this overview of the background of ZIO`_. Central is
@@ -195,6 +245,7 @@ Hence the absence of an experiment with Scalatra and ZIO combined.
 Of course I would rather use ZIO with zio-http instead.
 
 .. _`ZIO`: https://zio.dev/
+.. _`jOOQ`: https://www.jooq.org/
 .. _`this overview of the background of ZIO`: https://zio.dev/next/overview/overview_background
 .. _`this talk`: https://www.youtube.com/watch?v=qgfCmQ-2tW0
 .. _`this article about ZIO`: https://degoes.net/articles/zio-environment

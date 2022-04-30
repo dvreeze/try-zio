@@ -1,4 +1,6 @@
 
+import JooqCodegen._
+
 val scalaVer = "3.1.2"
 val crossScalaVer = Seq(scalaVer)
 
@@ -64,6 +66,13 @@ ThisBuild / libraryDependencies += "org.jetbrains" % "annotations" % "23.0.0"
 ThisBuild / libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.11"
 
 ThisBuild / testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
+
+val jooqCodegen = taskKey[Unit]("JOOQ code generation")
+
+// Do not forget to call this task. It is not run automatically as part of the build!
+ThisBuild / jooqCodegen := {
+  JooqCodegen.generate()
+}
 
 lazy val root = project.in(file("."))
   .settings(
