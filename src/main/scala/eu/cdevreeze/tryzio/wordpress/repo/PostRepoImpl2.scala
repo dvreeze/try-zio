@@ -24,23 +24,24 @@ import scala.util.Try
 import scala.util.chaining.*
 
 import eu.cdevreeze.tryzio.jdbc.JdbcSupport.*
+import eu.cdevreeze.tryzio.jooq.generated.wordpress.Tables.*
 import eu.cdevreeze.tryzio.wordpress.model.CommentStatus
 import eu.cdevreeze.tryzio.wordpress.model.Post
 import eu.cdevreeze.tryzio.wordpress.model.PostStatus
 import eu.cdevreeze.tryzio.wordpress.model.PostType
 import eu.cdevreeze.tryzio.wordpress.repo.PostRepoImpl2.PostRow
 import org.jooq.CommonTableExpression
+import org.jooq.DSLContext
 import org.jooq.Query
 import org.jooq.Record1
+import org.jooq.SQLDialect
 import org.jooq.WithStep
 import org.jooq.impl.DSL
 import org.jooq.impl.DSL.`val`
 import org.jooq.impl.DSL.field
 import org.jooq.impl.DSL.inlined
 import org.jooq.impl.DSL.name
-import org.jooq.impl.DSL.select
 import org.jooq.impl.DSL.table
-import org.jooq.impl.DSL.withRecursive
 import org.jooq.impl.SQLDataType.*
 import org.jooq.types.ULong
 import zio.*
@@ -54,78 +55,86 @@ import zio.json.*
  */
 final class PostRepoImpl2(val conn: Connection) extends PostRepo:
 
+  private def makeDsl(): DSLContext = DSL.using(SQLDialect.MYSQL)
+
   private val dateFormat = "%Y-%m-%dT%H:%i:%sZ"
 
   // Common Table Expression for the unfiltered Post rows
   private val basePostCte: CommonTableExpression[_] =
+    val dsl = makeDsl()
+    import dsl.*
     name("posts").unquotedName
       .fields(name("post_id").unquotedName, name("json_result").unquotedName)
       .as(
         select(
-          field("p.id", BIGINTUNSIGNED).as("post_id"),
+          WP_POSTS.ID.as("post_id"),
           inlined(
             field(
               s"""
                |JSON_OBJECT(
-               |  "postId", p.id,
-               |  "postDate", DATE_FORMAT(IF(YEAR(p.post_date_gmt) = 0, TIMESTAMP('1970-01-01 00:00:00'), p.post_date_gmt), '$dateFormat'),
-               |  "postContentOption", p.post_content,
-               |  "postTitle", p.post_title,
-               |  "postExcerpt", p.post_excerpt,
-               |  "postStatus", p.post_status,
-               |  "commentStatus", p.comment_status,
-               |  "pingStatus", p.ping_status,
-               |  "postName", p.post_name,
-               |  "toPing", p.to_ping,
-               |  "pinged", p.pinged,
-               |  "postModified", DATE_FORMAT(IF(YEAR(p.post_modified_gmt) = 0, TIMESTAMP('1970-01-01 00:00:00'), p.post_modified_gmt), '$dateFormat'),
-               |  "postContentFilteredOption", p.post_content_filtered,
-               |  "parentOpt", IF(p.post_parent = 0, null, p.post_parent),
-               |  "guid", p.guid,
-               |  "menuOrder", p.menu_order,
-               |  "postType", p.post_type,
-               |  "postMimeType", p.post_mime_type,
-               |  "commentCount", p.comment_count,
-               |  "postAuthorOption", IF(p.post_author = 0, null, JSON_OBJECT(
-               |      "userId", u.id,
-               |      "userLogin", u.user_login,
-               |      "userEmail", u.user_email,
-               |      "displayName", u.display_name
+               |  "postId", wp_posts.id,
+               |  "postDate", DATE_FORMAT(IF(YEAR(post_date_gmt) = 0, TIMESTAMP('1970-01-01 00:00:00'), post_date_gmt), '$dateFormat'),
+               |  "postContentOption", post_content,
+               |  "postTitle", post_title,
+               |  "postExcerpt", post_excerpt,
+               |  "postStatus", post_status,
+               |  "commentStatus", comment_status,
+               |  "pingStatus", ping_status,
+               |  "postName", post_name,
+               |  "toPing", to_ping,
+               |  "pinged", pinged,
+               |  "postModified", DATE_FORMAT(IF(YEAR(post_modified_gmt) = 0, TIMESTAMP('1970-01-01 00:00:00'), post_modified_gmt), '$dateFormat'),
+               |  "postContentFilteredOption", post_content_filtered,
+               |  "parentOpt", IF(post_parent = 0, null, post_parent),
+               |  "guid", guid,
+               |  "menuOrder", menu_order,
+               |  "postType", post_type,
+               |  "postMimeType", post_mime_type,
+               |  "commentCount", comment_count,
+               |  "postAuthorOption", IF(post_author = 0, null, JSON_OBJECT(
+               |      "userId", wp_users.id,
+               |      "userLogin", user_login,
+               |      "userEmail", user_email,
+               |      "displayName", display_name
                |    )
                |  ),
-               |  "postMeta", JSON_OBJECTAGG(COALESCE(pm.meta_key, ""), COALESCE(pm.meta_value, ""))
+               |  "postMeta", JSON_OBJECTAGG(COALESCE(meta_key, ""), COALESCE(meta_value, ""))
                |)
                |""".stripMargin.trim,
               JSON
             )
           )
         )
-          .from(table("wp_posts p"))
-          .leftJoin(table("wp_users u"))
-          .on(field("p.post_author", BIGINTUNSIGNED).equal(field("u.id", BIGINTUNSIGNED)))
-          .leftJoin(table("wp_postmeta pm"))
-          .on(field("p.id", BIGINTUNSIGNED).equal(field("pm.post_id", BIGINTUNSIGNED)))
-          .groupBy(field("p.id", BIGINTUNSIGNED))
+          .from(WP_POSTS)
+          .leftJoin(WP_USERS)
+          .on(WP_POSTS.POST_AUTHOR.equal(WP_USERS.ID))
+          .leftJoin(WP_POSTMETA)
+          .on(WP_POSTS.ID.equal(WP_POSTMETA.POST_ID))
+          .groupBy(WP_POSTS.ID)
       )
 
   // Creates a Common Table Expression for all descendant-or-self Post rows of the result of the given CTE
   // TODO Make ID column name explicit (probably as method parameter)
   private def createDescendantOrSelfPostIdsCte(startPostIdsCte: CommonTableExpression[Record1[ULong]]): CommonTableExpression[_] =
+    val dsl = makeDsl()
+    import dsl.*
     name("post_tree").unquotedName
       .fields(name("post_id").unquotedName, name("post_name").unquotedName, name("parent_id").unquotedName)
       .as(
-        select(field("id", BIGINTUNSIGNED), field("post_name", VARCHAR), field("post_parent", BIGINTUNSIGNED))
-          .from(table("wp_posts"))
-          .where(field("id", BIGINTUNSIGNED).in(select(field("id", BIGINTUNSIGNED)).from(startPostIdsCte)))
+        select(WP_POSTS.ID, WP_POSTS.POST_NAME, WP_POSTS.POST_PARENT)
+          .from(WP_POSTS)
+          .where(WP_POSTS.ID.in(select(field("id", BIGINTUNSIGNED)).from(startPostIdsCte)))
           .unionAll(
-            select(field("p.id", BIGINTUNSIGNED), field("p.post_name", VARCHAR), field("p.post_parent", BIGINTUNSIGNED))
+            select(WP_POSTS.ID, WP_POSTS.POST_NAME, WP_POSTS.POST_PARENT)
               .from(table("post_tree"))
-              .join(table("wp_posts p"))
-              .on(field("post_tree.post_id", BIGINTUNSIGNED).equal(field("p.post_parent", BIGINTUNSIGNED)))
+              .join(WP_POSTS)
+              .on(field("post_tree.post_id", BIGINTUNSIGNED).equal(WP_POSTS.POST_PARENT))
           )
       )
 
   private def createFullQuery(ctes: Seq[CommonTableExpression[_]], makeQuery: WithStep => Query): Query =
+    val dsl = makeDsl()
+    import dsl.*
     withRecursive(ctes: _*).pipe(makeQuery)
 
   private def mapPostRow(rs: ResultSet, idx: Int): PostRow =
@@ -136,6 +145,8 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
       .ensuring(_.postId == postId)
 
   def filterPosts(p: Post => Task[Boolean]): Task[Seq[Post]] =
+    val dsl = makeDsl()
+    import dsl.*
     // Inefficient
     val sql = createFullQuery(
       Seq(basePostCte),
@@ -152,12 +163,14 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
     filterPosts(p).map(_.map(_.copy(postContentOption = None).copy(postContentFilteredOption = None)))
 
   def findPost(postId: Long): Task[Option[Post]] =
+    val dsl = makeDsl()
+    import dsl.*
     val startPostIdCte: CommonTableExpression[Record1[ULong]] =
       name("post_ids").unquotedName
         .as(
-          select(field("id", BIGINTUNSIGNED))
-            .from(table("wp_posts"))
-            .where(field("id", BIGINTUNSIGNED).equal(`val`("dummyIdArg", BIGINTUNSIGNED)))
+          select(WP_POSTS.ID)
+            .from(WP_POSTS)
+            .where(WP_POSTS.ID.equal(`val`("dummyIdArg", BIGINTUNSIGNED)))
         )
     val recursivePostIdsCte = createDescendantOrSelfPostIdsCte(startPostIdCte)
     val sql = createFullQuery(
@@ -177,14 +190,16 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
   end findPost
 
   def findPostByName(name: String): Task[Option[Post]] =
+    val dsl = makeDsl()
+    import dsl.*
     val startPostIdCte: CommonTableExpression[Record1[ULong]] =
       DSL
         .name("post_ids")
         .unquotedName
         .as(
-          select(field("id", BIGINTUNSIGNED))
-            .from(table("wp_posts"))
-            .where(field("post_name", VARCHAR).equal(`val`("dummyNameArg", VARCHAR)))
+          select(WP_POSTS.ID)
+            .from(WP_POSTS)
+            .where(WP_POSTS.POST_NAME.equal(`val`("dummyNameArg", VARCHAR)))
         )
     val recursivePostIdsCte = createDescendantOrSelfPostIdsCte(startPostIdCte)
     val sql = createFullQuery(
