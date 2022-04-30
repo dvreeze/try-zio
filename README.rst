@@ -9,16 +9,15 @@ This project is about learning `ZIO`_ by doing. It also uses other dependencies,
 database, `jOOQ`_ etc.
 
 Before running console programs and tests, and even before compiling, a few steps are needed.
-The idea is to first start a MySQL Docker container, do a "docker exec" to it, and using the mysql
-client create and fill the Wordpress database:
+The idea is to first start a MySQL Docker container, do a "docker exec" into it, and then use the mysql
+client to create and fill the Wordpress database:
 
 * Navigate to a directory where the data should be stored, and create datadir and shared sub-directories
 * Copy the datadump/wordpress-dump.sql file to the shared sub-directory
 
 Next run some Docker commands:
 
-* sudo docker run --name mysql-wordpress -e MYSQL_ROOT_PASSWORD=root -d -p 3306:3306 \
-    -v $PWD/datadir:/var/lib/mysql -v $PWD/shared:/shared mysql:latest
+* sudo docker run --name mysql-wordpress -e MYSQL_ROOT_PASSWORD=root -d -p 3306:3306 -v $PWD/datadir:/var/lib/mysql -v $PWD/shared:/shared mysql:latest
 * sudo docker exec -it mysql-wordpress bash
 
 Inside that bash session, enter the following commands (entering the password when prompted):
