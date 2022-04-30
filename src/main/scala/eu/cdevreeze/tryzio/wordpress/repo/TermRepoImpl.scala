@@ -22,6 +22,7 @@ import java.sql.ResultSet
 import scala.util.chaining.*
 
 import eu.cdevreeze.tryzio.jdbc.JdbcSupport.*
+import eu.cdevreeze.tryzio.jooq.generated.wordpress.Tables.*
 import eu.cdevreeze.tryzio.wordpress.model.Term
 import eu.cdevreeze.tryzio.wordpress.model.TermTaxonomy
 import eu.cdevreeze.tryzio.wordpress.repo.TermRepoImpl.TermRow
@@ -35,7 +36,6 @@ import org.jooq.SelectJoinStep
 import org.jooq.WithStep
 import org.jooq.conf.RenderQuotedNames
 import org.jooq.conf.Settings
-import org.jooq.eu.cdevreeze.tryzio.generated.wordpress.Tables.*
 import org.jooq.impl.DSL
 import org.jooq.impl.DSL.`val`
 import org.jooq.impl.DSL.field

@@ -32,7 +32,7 @@ object JooqCodegen {
           .withGenerate(new Generate())
           .withTarget {
             new Target()
-              .withPackageName("org.jooq.eu.cdevreeze.tryzio.generated")
+              .withPackageName("eu.cdevreeze.tryzio.jooq.generated")
               .withDirectory("target/generated-sources/jooq")
           }
       }
