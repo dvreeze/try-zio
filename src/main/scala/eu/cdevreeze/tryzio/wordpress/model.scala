@@ -53,7 +53,10 @@ object model:
 
   enum PostStatus(val stringValue: String):
     case Draft extends PostStatus("draft")
+    case AutoDraft extends PostStatus("auto-draft")
     case Publish extends PostStatus("publish")
+    case Inherit extends PostStatus("inherit")
+    case Future extends PostStatus("future")
     case Unknown extends PostStatus("?")
 
   object PostStatus:
@@ -76,6 +79,8 @@ object model:
   enum PostType(val stringValue: String):
     case Page extends PostType("page")
     case Post extends PostType("post")
+    case Attachment extends PostType("attachment")
+    case NavMenuItem extends PostType("nav_menu_item")
     case WpGlobalStyles extends PostType("wp_global_styles")
     case Unknown extends PostType("?")
 

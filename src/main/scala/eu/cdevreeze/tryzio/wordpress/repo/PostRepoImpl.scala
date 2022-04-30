@@ -115,7 +115,7 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
   private def mapPostRow(rs: ResultSet, idx: Int): PostRow =
     PostRow(
       postId = rs.getLong(1),
-      postDate = rs.getTimestamp(2).toInstant,
+      postDate = Try(rs.getTimestamp(2).toInstant).getOrElse(Instant.EPOCH),
       postContentOption = Some(rs.getString(3)),
       postTitle = rs.getString(4),
       postExcerpt = rs.getString(5),
@@ -125,7 +125,7 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
       postName = rs.getString(9),
       toPing = rs.getString(10),
       pinged = rs.getString(11),
-      postModified = rs.getTimestamp(12).toInstant,
+      postModified = Try(rs.getTimestamp(12).toInstant).getOrElse(Instant.EPOCH),
       postContentFilteredOption = Some(rs.getString(13)),
       parentOpt = zeroToNone(rs.getLong(14)),
       guid = rs.getString(15),

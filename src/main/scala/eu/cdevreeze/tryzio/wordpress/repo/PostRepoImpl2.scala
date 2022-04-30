@@ -68,7 +68,7 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
               s"""
                |JSON_OBJECT(
                |  "postId", p.id,
-               |  "postDate", DATE_FORMAT(p.post_date_gmt, '$dateFormat'),
+               |  "postDate", DATE_FORMAT(IF(YEAR(p.post_date_gmt) = 0, TIMESTAMP('1970-01-01 00:00:00'), p.post_date_gmt), '$dateFormat'),
                |  "postContentOption", p.post_content,
                |  "postTitle", p.post_title,
                |  "postExcerpt", p.post_excerpt,
@@ -78,7 +78,7 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
                |  "postName", p.post_name,
                |  "toPing", p.to_ping,
                |  "pinged", p.pinged,
-               |  "postModified", DATE_FORMAT(p.post_modified_gmt, '$dateFormat'),
+               |  "postModified", DATE_FORMAT(IF(YEAR(p.post_modified_gmt) = 0, TIMESTAMP('1970-01-01 00:00:00'), p.post_modified_gmt), '$dateFormat'),
                |  "postContentFilteredOption", p.post_content_filtered,
                |  "parentOpt", IF(p.post_parent = 0, null, p.post_parent),
                |  "guid", p.guid,
