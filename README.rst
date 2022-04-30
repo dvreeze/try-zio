@@ -37,6 +37,10 @@ Inside that bash session, enter the following commands (entering the password wh
 If the mysql-wordpress container is stopped, it can be started again, of course. If it is removed,
 it must be created and started again, yet the database data should still be there.
 
+Database content can be dumped into a dump file (for later imports) in a mysql session as follows:
+
+* mysqldump -u root -p wordpress > /shared/wordpress-dump-2.sql
+
 Next, with the mysql-wordpress Docker container running, start an sbt session in a terminal with the
 root of this project as current directory. Invoke the following task inside the sbt session:
 
@@ -46,7 +50,11 @@ This will generate code needed by programs using jOOQ.
 
 TODO Run jooqCodegen automatically as code generation step. See https://www.scala-sbt.org/1.x/docs/Howto-Generating-Files.html.
 
-Now we are set up to run programs, tests, etc.
+Now we are set up to run programs, tests, etc. If we want to run Wordpress as well, against the
+running MySQL Docker container, enter the following command (in the same current directory as
+where we started MySQL):
+
+* sudo docker run -e WORDPRESS_DB_USER=root -e WORDPRESS_DB_PASSWORD=root --name wordpress --link mysql-wordpress:mysql -p 8080:80 -v "$PWD/html":/var/www/html -d wordpress
 
 Learning ZIO
 ============
