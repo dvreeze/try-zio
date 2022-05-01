@@ -67,12 +67,9 @@ ThisBuild / libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.1
 
 ThisBuild / testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 
-val jooqCodegen = taskKey[Unit]("JOOQ code generation")
-
-// Do not forget to call this task. It is not run automatically as part of the build!
-ThisBuild / jooqCodegen := {
-  JooqCodegen.generate()
-}
+Compile / sourceGenerators += Def.task {
+  JooqCodegen.generateJavaFiles((Compile / sourceManaged).value)
+}.taskValue
 
 lazy val root = project.in(file("."))
   .settings(

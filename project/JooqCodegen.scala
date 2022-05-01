@@ -1,6 +1,7 @@
 
 import sbt._
 
+import java.io.File
 import org.jooq._
 import org.jooq.codegen._
 import org.jooq.meta.jaxb
@@ -8,7 +9,11 @@ import org.jooq.meta.jaxb._
 
 object JooqCodegen {
 
-  def makeConfiguration(jdbcConnectionUrl: String, user: String, password: String): jaxb.Configuration = {
+  private val targetPackageName = "eu.cdevreeze.tryzio.jooq.generated"
+  private val managedSourceSubDir = "jooq"
+
+  def makeConfiguration(managedSourceDir: File, jdbcConnectionUrl: String, user: String, password: String): jaxb.Configuration = {
+    val targetDirectory: File = new File(managedSourceDir, managedSourceSubDir)
     new jaxb.Configuration()
       .withJdbc {
         new Jdbc()
@@ -32,8 +37,8 @@ object JooqCodegen {
           .withGenerate(new Generate())
           .withTarget {
             new Target()
-              .withPackageName("eu.cdevreeze.tryzio.jooq.generated")
-              .withDirectory("target/generated-sources/jooq")
+              .withPackageName(targetPackageName)
+              .withDirectory(targetDirectory.toString)
           }
       }
   }
@@ -46,7 +51,26 @@ object JooqCodegen {
   private val user = "root"
   private val password = "root" // Not exactly secure
 
-  def makeConfiguration(): jaxb.Configuration = makeConfiguration(getMySqlConnectionUrl(databaseName), user, password)
+  def makeConfiguration(managedSourceDir: File): jaxb.Configuration = {
+    makeConfiguration(managedSourceDir, getMySqlConnectionUrl(databaseName), user, password)
+  }
 
-  def generate(): Unit = GenerationTool.generate(makeConfiguration())
+  def generateJavaFiles(managedSourceDir: File): Seq[File] = {
+    GenerationTool.generate(makeConfiguration(managedSourceDir))
+
+    val targetDir: File = new File(managedSourceDir, managedSourceSubDir)
+    findJavaFiles(targetDir)
+  }
+
+  private def findJavaFiles(dir: File): Seq[File] = {
+    dir.listFiles().toSeq.flatMap { f =>
+      f match {
+        case d: File if d.isDirectory =>
+          // Recursive call
+          findJavaFiles(d)
+        case f: File if f.isFile && f.getName.endsWith(".java") =>
+          Seq(f)
+      }
+    }
+  }
 }

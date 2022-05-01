@@ -42,13 +42,9 @@ Database content can be dumped into a dump file (for later imports) in a mysql s
 * mysqldump -u root -p wordpress > /shared/wordpress-dump-2.sql
 
 Next, with the mysql-wordpress Docker container running, start an sbt session in a terminal with the
-root of this project as current directory. Invoke the following task inside the sbt session:
-
-* jooqCodegen
-
-This will generate code needed by programs using jOOQ.
-
-TODO Run jooqCodegen automatically as code generation step. See https://www.scala-sbt.org/1.x/docs/Howto-Generating-Files.html.
+root of this project as current directory. As part of the build, a jOOQ code generation task will
+run automatically. The generated Java source files represent database tables in jOOQ, and are used
+in parts of the code base.
 
 Now we are set up to run programs, tests, etc. If we want to run Wordpress as well, against the
 running MySQL Docker container, enter the following command (in the same current directory as
