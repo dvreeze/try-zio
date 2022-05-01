@@ -42,7 +42,6 @@ import org.jooq.impl.DSL.cast
 import org.jooq.impl.DSL.coalesce
 import org.jooq.impl.DSL.field
 import org.jooq.impl.DSL.inline
-import org.jooq.impl.DSL.inlined
 import org.jooq.impl.DSL.jsonObjectAgg
 import org.jooq.impl.DSL.name
 import org.jooq.impl.DSL.table

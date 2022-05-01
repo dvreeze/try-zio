@@ -19,6 +19,7 @@ package eu.cdevreeze.tryzio.wordpress.repo
 import java.sql.Connection
 import java.sql.ResultSet
 import java.time.Instant
+import java.time.LocalDateTime
 
 import scala.util.Try
 import scala.util.chaining.*
@@ -32,16 +33,27 @@ import eu.cdevreeze.tryzio.wordpress.model.PostType
 import eu.cdevreeze.tryzio.wordpress.repo.PostRepoImpl2.PostRow
 import org.jooq.CommonTableExpression
 import org.jooq.DSLContext
+import org.jooq.Field
 import org.jooq.Query
 import org.jooq.Record1
 import org.jooq.SQLDialect
 import org.jooq.WithStep
 import org.jooq.impl.DSL
 import org.jooq.impl.DSL.`val`
+import org.jooq.impl.DSL.cast
+import org.jooq.impl.DSL.coalesce
 import org.jooq.impl.DSL.field
+import org.jooq.impl.DSL.if_
+import org.jooq.impl.DSL.inline
 import org.jooq.impl.DSL.inlined
+import org.jooq.impl.DSL.jsonObject
+import org.jooq.impl.DSL.jsonObjectAgg
+import org.jooq.impl.DSL.key
 import org.jooq.impl.DSL.name
+import org.jooq.impl.DSL.nullif
 import org.jooq.impl.DSL.table
+import org.jooq.impl.DSL.timestamp
+import org.jooq.impl.DSL.year
 import org.jooq.impl.SQLDataType.*
 import org.jooq.types.ULong
 import zio.*
@@ -57,7 +69,10 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
 
   private def makeDsl(): DSLContext = DSL.using(SQLDialect.MYSQL)
 
-  private val dateFormat = "%Y-%m-%dT%H:%i:%sZ"
+  private val dateFmt = "%Y-%m-%dT%H:%i:%sZ"
+
+  private def dateFormat(fld: Field[LocalDateTime], format: String): Field[String] =
+    field("date_format({0}, {1})", VARCHAR, fld, DSL.inline(format))
 
   // Common Table Expression for the unfiltered Post rows
   private val basePostCte: CommonTableExpression[_] =
@@ -68,40 +83,62 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
       .as(
         select(
           WP_POSTS.ID.as("post_id"),
-          inlined(
-            field(
-              s"""
-               |JSON_OBJECT(
-               |  "postId", wp_posts.id,
-               |  "postDate", DATE_FORMAT(IF(YEAR(post_date_gmt) = 0, TIMESTAMP('1970-01-01 00:00:00'), post_date_gmt), '$dateFormat'),
-               |  "postContentOption", post_content,
-               |  "postTitle", post_title,
-               |  "postExcerpt", post_excerpt,
-               |  "postStatus", post_status,
-               |  "commentStatus", comment_status,
-               |  "pingStatus", ping_status,
-               |  "postName", post_name,
-               |  "toPing", to_ping,
-               |  "pinged", pinged,
-               |  "postModified", DATE_FORMAT(IF(YEAR(post_modified_gmt) = 0, TIMESTAMP('1970-01-01 00:00:00'), post_modified_gmt), '$dateFormat'),
-               |  "postContentFilteredOption", post_content_filtered,
-               |  "parentOpt", IF(post_parent = 0, null, post_parent),
-               |  "guid", guid,
-               |  "menuOrder", menu_order,
-               |  "postType", post_type,
-               |  "postMimeType", post_mime_type,
-               |  "commentCount", comment_count,
-               |  "postAuthorOption", IF(post_author = 0, null, JSON_OBJECT(
-               |      "userId", wp_users.id,
-               |      "userLogin", user_login,
-               |      "userEmail", user_email,
-               |      "displayName", display_name
-               |    )
-               |  ),
-               |  "postMeta", JSON_OBJECTAGG(COALESCE(meta_key, ""), COALESCE(meta_value, ""))
-               |)
-               |""".stripMargin.trim,
-              JSON
+          jsonObject(
+            key(DSL.inline("postId")).value(WP_POSTS.ID),
+            key(DSL.inline("postDate")).value(
+              dateFormat(
+                if_(
+                  year(WP_POSTS.POST_DATE_GMT).equal(DSL.inline(0)),
+                  DSL.inline(LocalDateTime.parse("1970-01-01T00:00:00")),
+                  WP_POSTS.POST_DATE_GMT
+                ),
+                dateFmt
+              )
+            ),
+            key(DSL.inline("postContentOption")).value(WP_POSTS.POST_CONTENT),
+            key(DSL.inline("postTitle")).value(WP_POSTS.POST_TITLE),
+            key(DSL.inline("postExcerpt")).value(WP_POSTS.POST_EXCERPT),
+            key(DSL.inline("postStatus")).value(WP_POSTS.POST_STATUS),
+            key(DSL.inline("commentStatus")).value(WP_POSTS.COMMENT_STATUS),
+            key(DSL.inline("pingStatus")).value(WP_POSTS.PING_STATUS),
+            key(DSL.inline("postName")).value(WP_POSTS.POST_NAME),
+            key(DSL.inline("toPing")).value(WP_POSTS.TO_PING),
+            key(DSL.inline("pinged")).value(WP_POSTS.PINGED),
+            key(DSL.inline("postModified")).value(
+              dateFormat(
+                if_(
+                  year(WP_POSTS.POST_MODIFIED_GMT).equal(DSL.inline(0)),
+                  DSL.inline(LocalDateTime.parse("1970-01-01T00:00:00")),
+                  WP_POSTS.POST_MODIFIED_GMT
+                ),
+                dateFmt
+              )
+            ),
+            key(DSL.inline("postContentFilteredOption")).value(WP_POSTS.POST_CONTENT_FILTERED),
+            key(DSL.inline("parentOpt"))
+              .value(nullif(WP_POSTS.POST_PARENT, DSL.inline(ULong.valueOf(0)))),
+            key(DSL.inline("guid")).value(WP_POSTS.GUID),
+            key(DSL.inline("menuOrder")).value(WP_POSTS.MENU_ORDER),
+            key(DSL.inline("postType")).value(WP_POSTS.POST_TYPE),
+            key(DSL.inline("postMimeType")).value(WP_POSTS.POST_MIME_TYPE),
+            key(DSL.inline("commentCount")).value(WP_POSTS.COMMENT_COUNT),
+            key(DSL.inline("postAuthorOption")).value(
+              if_(
+                WP_POSTS.POST_AUTHOR.equal(DSL.inline(ULong.valueOf(0))),
+                cast(DSL.inline(null: String), JSON),
+                jsonObject(
+                  key(DSL.inline("userId")).value(WP_USERS.ID),
+                  key(DSL.inline("userLogin")).value(WP_USERS.USER_LOGIN),
+                  key(DSL.inline("userEmail")).value(WP_USERS.USER_EMAIL),
+                  key(DSL.inline("displayName")).value(WP_USERS.DISPLAY_NAME)
+                )
+              )
+            ),
+            key(DSL.inline("postMeta")).value(
+              jsonObjectAgg(
+                cast(coalesce(WP_POSTMETA.META_KEY, DSL.inline("")), VARCHAR(255)),
+                coalesce(WP_POSTMETA.META_VALUE, DSL.inline(""))
+              )
             )
           )
         )
