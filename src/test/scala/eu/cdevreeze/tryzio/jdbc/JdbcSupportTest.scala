@@ -135,21 +135,19 @@ object JdbcSupportTest extends ZIOSpecDefault:
   }
 
   private def getUsers(ds: DataSource): Task[Seq[User]] =
-    val dsl = makeDsl()
-    import dsl.*
     for {
-      sqlQuery <- Task.attempt(select(USER.HOST, USER.USER_).from(USER))
+      dsl <- Task.attempt(makeDsl())
+      sqlQuery <- Task.attempt(dsl.select(USER.HOST, USER.USER_).from(USER))
       result <- using(ds)
         .query(sqlQuery.getSQL, Seq.empty) { (rs, _) => User(rs.getString(1), rs.getString(2)) }
     } yield result
   end getUsers
 
   private def getUsersTheHardWay(ds: DataSource): Task[Seq[User]] =
-    val dsl = makeDsl()
-    import dsl.*
     def createPreparedStatement(conn: Connection): Task[PreparedStatement] =
       Task.attempt {
-        conn.prepareStatement(select(USER.HOST, USER.USER_).from(USER).getSQL)
+        val dsl = makeDsl()
+        conn.prepareStatement(dsl.select(USER.HOST, USER.USER_).from(USER).getSQL)
       }
 
     using(ds)
@@ -160,22 +158,22 @@ object JdbcSupportTest extends ZIOSpecDefault:
   end getUsersTheHardWay
 
   private def getUsersTheVerboseWay(ds: DataSource): Task[Seq[User]] =
-    val dsl = makeDsl()
-    import dsl.*
-    using(ds)
-      .execute { conn =>
-        using(conn)
-          .query(select(USER.HOST, USER.USER_).from(USER).getSQL, Seq.empty) { (rs, _) =>
-            User(rs.getString(1), rs.getString(2))
-          }
-      }
+    Task.attempt(makeDsl()).flatMap { dsl =>
+      using(ds)
+        .execute { conn =>
+          using(conn)
+            .query(dsl.select(USER.HOST, USER.USER_).from(USER).getSQL, Seq.empty) { (rs, _) =>
+              User(rs.getString(1), rs.getString(2))
+            }
+        }
+    }
   end getUsersTheVerboseWay
 
   private def getSomeTimezones(timezoneLikeString: String, ds: DataSource): Task[Seq[Timezone]] =
-    val dsl = makeDsl()
-    import dsl.*
     val sqlQueryTask: Task[Query] = ZIO.attempt {
-      select(TIME_ZONE.TIME_ZONE_ID, TIME_ZONE_NAME.NAME, TIME_ZONE.USE_LEAP_SECONDS)
+      val dsl = makeDsl()
+      dsl
+        .select(TIME_ZONE.TIME_ZONE_ID, TIME_ZONE_NAME.NAME, TIME_ZONE.USE_LEAP_SECONDS)
         .from(TIME_ZONE)
         .join(TIME_ZONE_NAME)
         .on(TIME_ZONE.TIME_ZONE_ID.equal(TIME_ZONE_NAME.TIME_ZONE_ID))
@@ -192,10 +190,10 @@ object JdbcSupportTest extends ZIOSpecDefault:
   end getSomeTimezones
 
   private def createSecondUserTable(ds: DataSource): Task[Unit] =
-    val dsl = makeDsl()
-    import dsl.*
     val sqlStatTask: Task[CreateTableConstraintStep] = ZIO.attempt {
-      createTableIfNotExists(table("user_summary"))
+      val dsl = makeDsl()
+      dsl
+        .createTableIfNotExists(table("user_summary"))
         .column(field("name", VARCHAR), VARCHAR(255).notNull)
         .column(field("host", VARCHAR), VARCHAR(255).notNull)
         .constraint(primaryKey(field("name", VARCHAR), field("host", VARCHAR)))
@@ -210,18 +208,20 @@ object JdbcSupportTest extends ZIOSpecDefault:
   end createSecondUserTable
 
   private def copyUsers(ds: DataSource): Task[Unit] =
-    val dsl = makeDsl()
-    import dsl.*
-    val sql1Task: Task[Delete[_]] = Task.attempt { deleteFrom(table("user_summary")) }
-    val sql2Task: Task[Insert[_]] = Task.attempt {
-      insertInto(table("user_summary"))
-        .columns(field("name", VARCHAR), field("host", VARCHAR))
-        .select(select(field("user", VARCHAR), field("host", VARCHAR)).from(table("user")))
-    }
+    def sql1Task(dsl: DSLContext): Task[Delete[_]] =
+      Task.attempt { dsl.deleteFrom(table("user_summary")) }
+    def sql2Task(dsl: DSLContext): Task[Insert[_]] =
+      Task.attempt {
+        dsl
+          .insertInto(table("user_summary"))
+          .columns(field("name", VARCHAR), field("host", VARCHAR))
+          .select(dsl.select(field("user", VARCHAR), field("host", VARCHAR)).from(table("user")))
+      }
 
     for {
-      sql1 <- sql1Task
-      sql2 <- sql2Task
+      dsl <- Task.attempt(makeDsl())
+      sql1 <- sql1Task(dsl)
+      sql2 <- sql2Task(dsl)
       _ <- using(ds, IsolationLevel.ReadCommitted)
         .execute { tx =>
           for {
@@ -233,20 +233,22 @@ object JdbcSupportTest extends ZIOSpecDefault:
   end copyUsers
 
   private def getUsersFromSecondUserTable(ds: DataSource): Task[Seq[User]] =
-    val dsl = makeDsl()
-    import dsl.*
-    using(ds, IsolationLevel.ReadCommitted)
-      .query(select(field("host", VARCHAR), field("name", VARCHAR)).from(table("user_summary")).getSQL, Seq.empty) { (rs, _) =>
-        User(rs.getString(1), rs.getString(2))
-      }
+    for {
+      dsl <- Task.attempt(makeDsl())
+      result <- using(ds, IsolationLevel.ReadCommitted)
+        .query(dsl.select(field("host", VARCHAR), field("name", VARCHAR)).from(table("user_summary")).getSQL, Seq.empty) { (rs, _) =>
+          User(rs.getString(1), rs.getString(2))
+        }
+    } yield result
   end getUsersFromSecondUserTable
 
   private def dropSecondUserTable(ds: DataSource): Task[Unit] =
-    val dsl = makeDsl()
-    import dsl.*
-    using(ds, IsolationLevel.ReadCommitted)
-      .update(dropTable(table("user_summary")).getSQL, Seq.empty)
-      .unit
+    for {
+      dsl <- Task.attempt(makeDsl())
+      _ <- using(ds, IsolationLevel.ReadCommitted)
+        .update(dsl.dropTable(table("user_summary")).getSQL, Seq.empty)
+        .unit
+    } yield ()
   end dropSecondUserTable
 
   // See https://github.com/brettwooldridge/HikariCP for connection pooling

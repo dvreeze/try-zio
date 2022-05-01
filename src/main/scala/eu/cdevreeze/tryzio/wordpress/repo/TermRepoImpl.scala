@@ -55,29 +55,27 @@ final class TermRepoImpl(val conn: Connection) extends TermRepo:
 
   private def makeDsl(): DSLContext = DSL.using(SQLDialect.MYSQL)
 
-  private val baseTermSql: SelectJoinStep[_] =
-    val dsl = makeDsl()
-    import dsl.*
-    select(WP_TERMS.TERM_ID, WP_TERMS.NAME, WP_TERMS.SLUG, WP_TERMS.TERM_GROUP)
+  private def baseTermSql(dsl: DSLContext): SelectJoinStep[_] =
+    dsl
+      .select(WP_TERMS.TERM_ID, WP_TERMS.NAME, WP_TERMS.SLUG, WP_TERMS.TERM_GROUP)
       .from(WP_TERMS)
 
   // Common Table Expression for the unfiltered term-taxonomy rows
-  private val baseTermTaxonomyCte: CommonTableExpression[_] =
-    val dsl = makeDsl()
-    import dsl.*
+  private def baseTermTaxonomyCte(dsl: DSLContext): CommonTableExpression[_] =
     name("term_taxos").unquotedName
       .as(
-        select(
-          WP_TERM_TAXONOMY.TERM_TAXONOMY_ID,
-          WP_TERM_TAXONOMY.TERM_ID,
-          WP_TERMS.NAME,
-          WP_TERMS.SLUG,
-          WP_TERMS.TERM_GROUP,
-          WP_TERM_TAXONOMY.TAXONOMY,
-          WP_TERM_TAXONOMY.DESCRIPTION,
-          WP_TERM_TAXONOMY.PARENT,
-          WP_TERM_TAXONOMY.COUNT
-        )
+        dsl
+          .select(
+            WP_TERM_TAXONOMY.TERM_TAXONOMY_ID,
+            WP_TERM_TAXONOMY.TERM_ID,
+            WP_TERMS.NAME,
+            WP_TERMS.SLUG,
+            WP_TERMS.TERM_GROUP,
+            WP_TERM_TAXONOMY.TAXONOMY,
+            WP_TERM_TAXONOMY.DESCRIPTION,
+            WP_TERM_TAXONOMY.PARENT,
+            WP_TERM_TAXONOMY.COUNT
+          )
           .from(WP_TERM_TAXONOMY)
           .join(WP_TERMS)
           .on(WP_TERM_TAXONOMY.TERM_ID.equal(WP_TERMS.TERM_ID))
@@ -85,29 +83,30 @@ final class TermRepoImpl(val conn: Connection) extends TermRepo:
 
   // Creates a Common Table Expression for all descendant-or-self term-taxonomy rows of the result of the given CTE
   // TODO Make term_taxonomy_id column name explicit (probably as method parameter)
-  private def createDescendantOrSelfTermTaxoIdsCte(startTermTaxoIdsCte: CommonTableExpression[Record1[ULong]]): CommonTableExpression[_] =
-    val dsl = makeDsl()
-    import dsl.*
+  private def createDescendantOrSelfTermTaxoIdsCte(
+      startTermTaxoIdsCte: CommonTableExpression[Record1[ULong]],
+      dsl: DSLContext
+  ): CommonTableExpression[_] =
     name("tt_tree").unquotedName
       .fields(name("tt_id").unquotedName, name("term_id").unquotedName, name("parent_id").unquotedName)
       .as(
-        select(WP_TERM_TAXONOMY.TERM_TAXONOMY_ID, WP_TERM_TAXONOMY.TERM_ID, WP_TERM_TAXONOMY.PARENT)
+        dsl
+          .select(WP_TERM_TAXONOMY.TERM_TAXONOMY_ID, WP_TERM_TAXONOMY.TERM_ID, WP_TERM_TAXONOMY.PARENT)
           .from(WP_TERM_TAXONOMY)
           .where(
-            WP_TERM_TAXONOMY.TERM_TAXONOMY_ID.in(select(field("term_taxonomy_id", BIGINTUNSIGNED)).from(startTermTaxoIdsCte))
+            WP_TERM_TAXONOMY.TERM_TAXONOMY_ID.in(dsl.select(field("term_taxonomy_id", BIGINTUNSIGNED)).from(startTermTaxoIdsCte))
           )
           .unionAll(
-            select(WP_TERM_TAXONOMY.TERM_TAXONOMY_ID, WP_TERM_TAXONOMY.TERM_ID, WP_TERM_TAXONOMY.PARENT)
+            dsl
+              .select(WP_TERM_TAXONOMY.TERM_TAXONOMY_ID, WP_TERM_TAXONOMY.TERM_ID, WP_TERM_TAXONOMY.PARENT)
               .from(table("tt_tree"))
               .join(WP_TERM_TAXONOMY)
               .on(field("tt_tree.tt_id", BIGINTUNSIGNED).equal(WP_TERM_TAXONOMY.PARENT))
           )
       )
 
-  private def createFullQuery(ctes: Seq[CommonTableExpression[_]], makeQuery: WithStep => Query): Query =
-    val dsl = makeDsl()
-    import dsl.*
-    withRecursive(ctes: _*).pipe(makeQuery)
+  private def createFullQuery(ctes: Seq[CommonTableExpression[_]], makeQuery: WithStep => Query, dsl: DSLContext): Query =
+    dsl.withRecursive(ctes: _*).pipe(makeQuery)
 
   private def mapTermRow(rs: ResultSet, idx: Int): TermRow =
     TermRow(id = rs.getLong(1), name = rs.getString(2), slug = rs.getString(3), termGroupOpt = zeroToNone(rs.getLong(4)))
@@ -126,45 +125,41 @@ final class TermRepoImpl(val conn: Connection) extends TermRepo:
     )
 
   def findAllTerms(): Task[Seq[Term]] =
-    val sql = baseTermSql
     for {
+      dsl <- Task.attempt(makeDsl())
+      sql <- Task.attempt(baseTermSql(dsl))
       rows <- using(conn).query(sql.getSQL, Seq.empty)(mapTermRow)
       terms <- ZIO.attempt(rows.map(_.toTerm))
     } yield terms
 
   def findTerm(termId: Long): Task[Option[Term]] =
-    val dsl = makeDsl()
-    import dsl.*
-    val sql = baseTermSql.where(WP_TERMS.TERM_ID.equal(`val`("dummyTermIdArg", BIGINTUNSIGNED)))
     for {
+      dsl <- Task.attempt(makeDsl())
+      sql <- Task.attempt(baseTermSql(dsl).where(WP_TERMS.TERM_ID.equal(`val`("dummyTermIdArg", BIGINTUNSIGNED))))
       rows <- using(conn).query(sql.getSQL, Seq(Argument.LongArg(termId)))(mapTermRow)
       rowOption = rows.headOption
       termOption <- ZIO.attempt(rowOption.map(_.toTerm))
     } yield termOption
 
   def findTermByName(name: String): Task[Option[Term]] =
-    val dsl = makeDsl()
-    import dsl.*
-    val sql = baseTermSql.where(WP_TERMS.NAME.equal(`val`("dummyNameArg", VARCHAR)))
     for {
+      dsl <- Task.attempt(makeDsl())
+      sql <- Task.attempt(baseTermSql(dsl).where(WP_TERMS.NAME.equal(`val`("dummyNameArg", VARCHAR))))
       rows <- using(conn).query(sql.getSQL, Seq(Argument.StringArg(name)))(mapTermRow)
       rowOption = rows.headOption
       termOption <- ZIO.attempt(rowOption.map(_.toTerm))
     } yield termOption
 
   def findAllTermTaxonomies(): Task[Seq[TermTaxonomy]] =
-    val dsl = makeDsl()
-    import dsl.*
-    val sql = createFullQuery(Seq(baseTermTaxonomyCte), _.select().from(table("term_taxos")))
     for {
+      dsl <- Task.attempt(makeDsl())
+      sql <- Task.attempt(createFullQuery(Seq(baseTermTaxonomyCte(dsl)), _.select().from(table("term_taxos")), dsl))
       rows <- using(conn).query(sql.getSQL, Seq.empty)(mapTermTaxonomyRow)
       termTaxonomies <- ZIO.attempt(TermTaxonomyRow.toTermTaxonomies(rows))
     } yield termTaxonomies
 
   def findTermTaxonomy(termTaxoId: Long): Task[Option[TermTaxonomy]] =
-    val dsl = makeDsl()
-    import dsl.*
-    val startTermTaxoIdCte: CommonTableExpression[Record1[ULong]] =
+    def startTermTaxoIdCte(dsl: DSLContext): CommonTableExpression[Record1[ULong]] =
       name("term_taxo_ids").unquotedName
         .as(
           dsl
@@ -172,16 +167,19 @@ final class TermRepoImpl(val conn: Connection) extends TermRepo:
             .from(WP_TERM_TAXONOMY)
             .where(WP_TERM_TAXONOMY.TERM_TAXONOMY_ID.equal(`val`("dummyTermTaxonomyIdArg", BIGINTUNSIGNED)))
         )
-    val recursiveTermTaxoIdsCte = createDescendantOrSelfTermTaxoIdsCte(startTermTaxoIdCte)
-    val sql = createFullQuery(
-      Seq(startTermTaxoIdCte, recursiveTermTaxoIdsCte, baseTermTaxonomyCte),
+    def recursiveTermTaxoIdsCte(dsl: DSLContext) = createDescendantOrSelfTermTaxoIdsCte(startTermTaxoIdCte(dsl), dsl)
+    def makeSql(dsl: DSLContext) = createFullQuery(
+      Seq(startTermTaxoIdCte(dsl), recursiveTermTaxoIdsCte(dsl), baseTermTaxonomyCte(dsl)),
       _.select()
         .from(table("term_taxos"))
-        .where(field("term_taxonomy_id", BIGINTUNSIGNED).in(select(field("tt_id", BIGINTUNSIGNED)).from(table("tt_tree"))))
+        .where(field("term_taxonomy_id", BIGINTUNSIGNED).in(dsl.select(field("tt_id", BIGINTUNSIGNED)).from(table("tt_tree")))),
+      dsl
     )
 
     val filteredTermTaxonomies =
       for {
+        dsl <- Task.attempt(makeDsl())
+        sql <- Task.attempt(makeSql(dsl))
         rows <- using(conn).query(sql.getSQL, Seq(Argument.LongArg(termTaxoId)))(mapTermTaxonomyRow)
         termTaxonomies <- ZIO.attempt(TermTaxonomyRow.toTermTaxonomies(rows))
       } yield termTaxonomies
@@ -190,33 +188,36 @@ final class TermRepoImpl(val conn: Connection) extends TermRepo:
   end findTermTaxonomy
 
   def findTermTaxonomiesByTermId(termId: Long): Task[Seq[TermTaxonomy]] =
-    val dsl = makeDsl()
-    import dsl.*
-    val startTermTaxoIdCte: CommonTableExpression[Record1[ULong]] =
+    def startTermTaxoIdCte(dsl: DSLContext): CommonTableExpression[Record1[ULong]] =
       name("term_taxo_ids").unquotedName
         .as(
-          select(WP_TERM_TAXONOMY.TERM_TAXONOMY_ID)
+          dsl
+            .select(WP_TERM_TAXONOMY.TERM_TAXONOMY_ID)
             .from(WP_TERM_TAXONOMY)
             .where(
               field(
                 WP_TERM_TAXONOMY.TERM_ID.in(
-                  select(WP_TERMS.TERM_ID)
+                  dsl
+                    .select(WP_TERMS.TERM_ID)
                     .from(WP_TERMS)
                     .where(WP_TERMS.TERM_ID.equal(`val`("dummyTermIdArg", BIGINTUNSIGNED)))
                 )
               )
             )
         )
-    val recursiveTermTaxoIdsCte = createDescendantOrSelfTermTaxoIdsCte(startTermTaxoIdCte)
-    val sql = createFullQuery(
-      Seq(startTermTaxoIdCte, recursiveTermTaxoIdsCte, baseTermTaxonomyCte),
+    def recursiveTermTaxoIdsCte(dsl: DSLContext) = createDescendantOrSelfTermTaxoIdsCte(startTermTaxoIdCte(dsl), dsl)
+    def makeSql(dsl: DSLContext) = createFullQuery(
+      Seq(startTermTaxoIdCte(dsl), recursiveTermTaxoIdsCte(dsl), baseTermTaxonomyCte(dsl)),
       _.select()
         .from(table("term_taxos"))
-        .where(field("term_taxonomy_id", BIGINTUNSIGNED).in(select(field("tt_id", BIGINTUNSIGNED)).from(table("tt_tree"))))
+        .where(field("term_taxonomy_id", BIGINTUNSIGNED).in(dsl.select(field("tt_id", BIGINTUNSIGNED)).from(table("tt_tree")))),
+      dsl
     )
 
     val filteredTermTaxonomies =
       for {
+        dsl <- Task.attempt(makeDsl())
+        sql <- Task.attempt(makeSql(dsl))
         rows <- using(conn).query(sql.getSQL, Seq(Argument.LongArg(termId)))(mapTermTaxonomyRow)
         termTaxonomies <- ZIO.attempt(TermTaxonomyRow.toTermTaxonomies(rows))
       } yield termTaxonomies
@@ -225,33 +226,36 @@ final class TermRepoImpl(val conn: Connection) extends TermRepo:
   end findTermTaxonomiesByTermId
 
   def findTermTaxonomiesByTermName(termName: String): Task[Seq[TermTaxonomy]] =
-    val dsl = makeDsl()
-    import dsl.*
-    val startTermTaxoIdCte: CommonTableExpression[Record1[ULong]] =
+    def startTermTaxoIdCte(dsl: DSLContext): CommonTableExpression[Record1[ULong]] =
       name("term_taxo_ids").unquotedName
         .as(
-          select(WP_TERM_TAXONOMY.TERM_TAXONOMY_ID)
+          dsl
+            .select(WP_TERM_TAXONOMY.TERM_TAXONOMY_ID)
             .from(WP_TERM_TAXONOMY)
             .where(
               field(
                 WP_TERM_TAXONOMY.TERM_ID.in(
-                  select(WP_TERMS.TERM_ID)
+                  dsl
+                    .select(WP_TERMS.TERM_ID)
                     .from(WP_TERMS)
                     .where(WP_TERMS.NAME.equal(`val`("dummyNameArg", VARCHAR)))
                 )
               )
             )
         )
-    val recursiveTermTaxoIdsCte = createDescendantOrSelfTermTaxoIdsCte(startTermTaxoIdCte)
-    val sql = createFullQuery(
-      Seq(startTermTaxoIdCte, recursiveTermTaxoIdsCte, baseTermTaxonomyCte),
+    def recursiveTermTaxoIdsCte(dsl: DSLContext) = createDescendantOrSelfTermTaxoIdsCte(startTermTaxoIdCte(dsl), dsl)
+    def makeSql(dsl: DSLContext) = createFullQuery(
+      Seq(startTermTaxoIdCte(dsl), recursiveTermTaxoIdsCte(dsl), baseTermTaxonomyCte(dsl)),
       _.select()
         .from(table("term_taxos"))
-        .where(field("term_taxonomy_id", BIGINTUNSIGNED).in(select(field("tt_id", BIGINTUNSIGNED)).from(table("tt_tree"))))
+        .where(field("term_taxonomy_id", BIGINTUNSIGNED).in(dsl.select(field("tt_id", BIGINTUNSIGNED)).from(table("tt_tree")))),
+      dsl
     )
 
     val filteredTermTaxonomies =
       for {
+        dsl <- Task.attempt(makeDsl())
+        sql <- Task.attempt(makeSql(dsl))
         rows <- using(conn).query(sql.getSQL, Seq(Argument.StringArg(termName)))(mapTermTaxonomyRow)
         termTaxonomies <- ZIO.attempt(TermTaxonomyRow.toTermTaxonomies(rows))
       } yield termTaxonomies
