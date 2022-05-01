@@ -20,6 +20,7 @@ import java.sql.Connection
 import java.sql.ResultSet
 import java.time.Instant
 import java.time.LocalDateTime
+import java.time.ZoneId
 
 import scala.util.Try
 import scala.util.chaining.*
@@ -42,6 +43,7 @@ import org.jooq.impl.DSL
 import org.jooq.impl.DSL.`val`
 import org.jooq.impl.DSL.cast
 import org.jooq.impl.DSL.coalesce
+import org.jooq.impl.DSL.concat
 import org.jooq.impl.DSL.field
 import org.jooq.impl.DSL.if_
 import org.jooq.impl.DSL.inline
@@ -69,7 +71,7 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
 
   private def makeDsl(): DSLContext = DSL.using(SQLDialect.MYSQL)
 
-  private val dateFmt = "%Y-%m-%dT%H:%i:%sZ"
+  private val dateFmt = "%Y-%m-%dT%H:%i:%s"
 
   private def dateFormat(fld: Field[LocalDateTime], format: String): Field[String] =
     field("date_format({0}, {1})", VARCHAR, fld, DSL.inline(format))
@@ -86,13 +88,10 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
           jsonObject(
             key(DSL.inline("postId")).value(WP_POSTS.ID),
             key(DSL.inline("postDate")).value(
-              dateFormat(
-                if_(
-                  year(WP_POSTS.POST_DATE_GMT).equal(DSL.inline(0)),
-                  DSL.inline(LocalDateTime.parse("1970-01-01T00:00:00")),
-                  WP_POSTS.POST_DATE_GMT
-                ),
-                dateFmt
+              if_(
+                year(WP_POSTS.POST_DATE_GMT).equal(DSL.inline(0)),
+                DSL.inline(Instant.EPOCH.toString),
+                concat(dateFormat(WP_POSTS.POST_DATE_GMT, dateFmt), DSL.inline("Z"))
               )
             ),
             key(DSL.inline("postContentOption")).value(WP_POSTS.POST_CONTENT),
@@ -105,13 +104,10 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
             key(DSL.inline("toPing")).value(WP_POSTS.TO_PING),
             key(DSL.inline("pinged")).value(WP_POSTS.PINGED),
             key(DSL.inline("postModified")).value(
-              dateFormat(
-                if_(
-                  year(WP_POSTS.POST_MODIFIED_GMT).equal(DSL.inline(0)),
-                  DSL.inline(LocalDateTime.parse("1970-01-01T00:00:00")),
-                  WP_POSTS.POST_MODIFIED_GMT
-                ),
-                dateFmt
+              if_(
+                year(WP_POSTS.POST_MODIFIED_GMT).equal(DSL.inline(0)),
+                DSL.inline(Instant.EPOCH.toString),
+                concat(dateFormat(WP_POSTS.POST_MODIFIED_GMT, dateFmt), DSL.inline("Z"))
               )
             ),
             key(DSL.inline("postContentFilteredOption")).value(WP_POSTS.POST_CONTENT_FILTERED),
