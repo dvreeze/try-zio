@@ -136,8 +136,8 @@ object JdbcSupportTest extends ZIOSpecDefault:
 
   private def getUsers(ds: DataSource): Task[Seq[User]] =
     for {
-      dsl <- Task.attempt(makeDsl())
-      sqlQuery <- Task.attempt(dsl.select(USER.HOST, USER.USER_).from(USER))
+      dsl <- ZIO.attempt(makeDsl())
+      sqlQuery <- ZIO.attempt(dsl.select(USER.HOST, USER.USER_).from(USER))
       result <- using(ds)
         .query(sqlQuery.getSQL, Seq.empty) { (rs, _) => User(rs.getString(1), rs.getString(2)) }
     } yield result
@@ -145,7 +145,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
 
   private def getUsersTheHardWay(ds: DataSource): Task[Seq[User]] =
     def createPreparedStatement(conn: Connection): Task[PreparedStatement] =
-      Task.attempt {
+      ZIO.attempt {
         val dsl = makeDsl()
         conn.prepareStatement(dsl.select(USER.HOST, USER.USER_).from(USER).getSQL)
       }
@@ -158,7 +158,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
   end getUsersTheHardWay
 
   private def getUsersTheVerboseWay(ds: DataSource): Task[Seq[User]] =
-    Task.attempt(makeDsl()).flatMap { dsl =>
+    ZIO.attempt(makeDsl()).flatMap { dsl =>
       using(ds)
         .execute { conn =>
           using(conn)
@@ -209,9 +209,9 @@ object JdbcSupportTest extends ZIOSpecDefault:
 
   private def copyUsers(ds: DataSource): Task[Unit] =
     def sql1Task(dsl: DSLContext): Task[Delete[_]] =
-      Task.attempt { dsl.deleteFrom(table("user_summary")) }
+      ZIO.attempt { dsl.deleteFrom(table("user_summary")) }
     def sql2Task(dsl: DSLContext): Task[Insert[_]] =
-      Task.attempt {
+      ZIO.attempt {
         dsl
           .insertInto(table("user_summary"))
           .columns(field("name", VARCHAR), field("host", VARCHAR))
@@ -219,7 +219,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
       }
 
     for {
-      dsl <- Task.attempt(makeDsl())
+      dsl <- ZIO.attempt(makeDsl())
       sql1 <- sql1Task(dsl)
       sql2 <- sql2Task(dsl)
       _ <- using(ds, IsolationLevel.ReadCommitted)
@@ -234,7 +234,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
 
   private def getUsersFromSecondUserTable(ds: DataSource): Task[Seq[User]] =
     for {
-      dsl <- Task.attempt(makeDsl())
+      dsl <- ZIO.attempt(makeDsl())
       result <- using(ds, IsolationLevel.ReadCommitted)
         .query(dsl.select(field("host", VARCHAR), field("name", VARCHAR)).from(table("user_summary")).getSQL, Seq.empty) { (rs, _) =>
           User(rs.getString(1), rs.getString(2))
@@ -244,7 +244,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
 
   private def dropSecondUserTable(ds: DataSource): Task[Unit] =
     for {
-      dsl <- Task.attempt(makeDsl())
+      dsl <- ZIO.attempt(makeDsl())
       _ <- using(ds, IsolationLevel.ReadCommitted)
         .update(dsl.dropTable(table("user_summary")).getSQL, Seq.empty)
         .unit
@@ -254,7 +254,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
   // See https://github.com/brettwooldridge/HikariCP for connection pooling
 
   private def getDataSource(): Task[DataSource] =
-    Task.attempt {
+    ZIO.attempt {
       val config = new HikariConfig("/hikari.properties") // Also tries the classpath to read from
       new HikariDataSource(config)
     }

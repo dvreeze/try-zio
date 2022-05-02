@@ -47,12 +47,12 @@ object FindPalindromes extends ZIOAppDefault:
   end run
 
   def run(f: => File): Task[Seq[String]] =
-    IO.attempt(Source.fromFile(f)(Codec.UTF8)).acquireReleaseWith(src => IO.succeed(src.close())) { src =>
+    ZIO.acquireReleaseWith(ZIO.attempt(Source.fromFile(f)(Codec.UTF8)))(src => ZIO.succeed(src.close())) { src =>
       val words: ZStream[Any, Throwable, String] = ZStream.fromIterator(src.getLines())
       val palindromes = words.filterZIO(isPalindrome).filter(_.lengthIs >= 2)
       palindromes.runCollect
-        .flatMap(chunk => IO.attempt(chunk.toSeq))
-        .flatMap(words => IO.attempt(words.sortBy(word => (-word.length, word))))
+        .flatMap(chunk => ZIO.attempt(chunk.toSeq))
+        .flatMap(words => ZIO.attempt(words.sortBy(word => (-word.length, word))))
     }
   end run
 

@@ -185,8 +185,8 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
       dsl
     )
     for {
-      dsl <- Task.attempt(makeDsl())
-      sql <- Task.attempt(makeSql(dsl))
+      dsl <- ZIO.attempt(makeDsl())
+      sql <- ZIO.attempt(makeSql(dsl))
       rows <- using(conn).query(sql.getSQL, Seq.empty)(mapPostRow)
       posts <- ZIO.attempt(PostRow.toPosts(rows))
       filteredPosts <- ZIO.filter(posts)(p)
@@ -216,8 +216,8 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
 
     val filteredPosts =
       for {
-        dsl <- Task.attempt(makeDsl())
-        sql <- Task.attempt(makeSql(dsl))
+        dsl <- ZIO.attempt(makeDsl())
+        sql <- ZIO.attempt(makeSql(dsl))
         rows <- using(conn).query(sql.getSQL, Seq(Argument.LongArg(postId)))(mapPostRow)
         posts <- ZIO.attempt(PostRow.toPosts(rows))
       } yield posts
@@ -247,8 +247,8 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
 
     val filteredPosts =
       for {
-        dsl <- Task.attempt(makeDsl())
-        sql <- Task.attempt(makeSql(dsl))
+        dsl <- ZIO.attempt(makeDsl())
+        sql <- ZIO.attempt(makeSql(dsl))
         rows <- using(conn).query(sql.getSQL, Seq(Argument.StringArg(name)))(mapPostRow)
         posts <- ZIO.attempt(PostRow.toPosts(rows))
       } yield posts

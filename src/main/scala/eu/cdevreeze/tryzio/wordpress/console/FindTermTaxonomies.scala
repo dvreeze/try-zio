@@ -44,7 +44,7 @@ object FindTermTaxonomies extends ZIOAppDefault:
   // See https://github.com/brettwooldridge/HikariCP for connection pooling
 
   private def getDataSource(): Task[DataSource] =
-    Task.attempt {
+    ZIO.attempt {
       val config = new HikariConfig("/hikari-wp.properties") // Also tries the classpath to read from
       new HikariDataSource(config)
     }

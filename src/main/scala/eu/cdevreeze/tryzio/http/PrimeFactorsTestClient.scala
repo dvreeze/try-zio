@@ -61,8 +61,8 @@ object PrimeFactorsTestClient extends ZIOAppDefault:
     val getStringResponses: RIO[ZIOAppArgs & ChannelFactory & EventLoopGroup, Seq[String]] =
       for {
         cfg <- configGetter
-        numbers <- IO.attempt(cfg.minNumber.to(cfg.maxNumber))
-        numberOfProcessors <- IO
+        numbers <- ZIO.attempt(cfg.minNumber.to(cfg.maxNumber))
+        numberOfProcessors <- ZIO
           .attempt(java.lang.Runtime.getRuntime.availableProcessors)
           .tap(n => printLine(s"Number of available processors: $n"))
         responseStringsFiber <- ZIO
@@ -79,12 +79,12 @@ object PrimeFactorsTestClient extends ZIOAppDefault:
 
   private def getResponseAsString(url: URI): RIO[ChannelFactory & EventLoopGroup, String] =
     for {
-      headers <- Task.attempt(Headers.host(url.getHost))
+      headers <- ZIO.attempt(Headers.host(url.getHost))
       response <- Client.request(url = url.toString, headers = headers)
       content <- response.bodyAsString
     } yield content
 
   private def getUrl(host: String, port: Int, number: BigInt): Task[URI] =
-    Task.attempt { URI.create(s"http://$host:$port/primeFactors/$number") }
+    ZIO.attempt { URI.create(s"http://$host:$port/primeFactors/$number") }
 
 end PrimeFactorsTestClient

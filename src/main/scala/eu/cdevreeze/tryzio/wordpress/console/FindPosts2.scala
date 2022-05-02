@@ -36,7 +36,7 @@ object FindPosts2 extends ZIOAppDefault:
   def run: Task[Unit] =
     for {
       ds <- getDataSource()
-      results <- using(ds).execute(conn => PostRepoImpl2(conn).filterPosts(_ => IO.succeed(true)))
+      results <- using(ds).execute(conn => PostRepoImpl2(conn).filterPosts(_ => ZIO.succeed(true)))
       jsonResults <- ZIO.attempt(results.map(_.toJsonPretty))
       _ <- printLine(jsonResults)
     } yield ()
@@ -44,7 +44,7 @@ object FindPosts2 extends ZIOAppDefault:
   // See https://github.com/brettwooldridge/HikariCP for connection pooling
 
   private def getDataSource(): Task[DataSource] =
-    Task.attempt {
+    ZIO.attempt {
       val config = new HikariConfig("/hikari-wp.properties") // Also tries the classpath to read from
       new HikariDataSource(config)
     }

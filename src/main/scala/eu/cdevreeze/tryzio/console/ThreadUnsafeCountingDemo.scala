@@ -110,22 +110,22 @@ object ThreadUnsafeCountingDemo extends ZIOAppDefault:
       .flatMap(_ => counter.get)
 
   private def incrementTask(counter: VeryMuchBrokenCounter): Task[Unit] =
-    IO.attempt(counter.increment())
+    ZIO.attempt(counter.increment())
 
   private def incrementTask(counter: BrokenCounter): Task[Unit] =
-    IO.attempt(counter.increment())
+    ZIO.attempt(counter.increment())
 
   private def incrementTask(counter: SubtlySafeCounter): Task[Unit] =
-    IO.attempt(counter.increment())
+    ZIO.attempt(counter.increment())
 
   private def incrementTask(counter: VolatileSubtlySafeCounter): Task[Unit] =
-    IO.attempt(counter.increment())
+    ZIO.attempt(counter.increment())
 
   private def incrementTask(counter: SafeCounter): Task[Unit] =
-    IO.attempt(counter.increment())
+    ZIO.attempt(counter.increment())
 
   private def incrementTask(counter: AtomicInteger): Task[Unit] =
-    IO.attempt(counter.incrementAndGet())
+    ZIO.attempt(counter.incrementAndGet())
 
   private def incrementTask(counter: Ref[Int]): Task[Unit] =
     counter.update(_ + 1)

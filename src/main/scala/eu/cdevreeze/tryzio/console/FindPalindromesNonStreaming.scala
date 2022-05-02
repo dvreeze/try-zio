@@ -44,14 +44,14 @@ object FindPalindromesNonStreaming extends ZIOAppDefault:
   end run
 
   def run(f: => File): Task[Seq[String]] =
-    IO.attempt(Source.fromFile(f)(Codec.UTF8)).acquireReleaseWith(src => IO.succeed(src.close())) { src =>
+    ZIO.acquireReleaseWith(ZIO.attempt(Source.fromFile(f)(Codec.UTF8)))(src => ZIO.succeed(src.close())) { src =>
       val getWords: Task[Seq[String]] =
-        ZIO.attempt(src.getLines.toSeq).flatMap(lines => ZIO.collectAll(lines.map(IO.succeed)))
+        ZIO.attempt(src.getLines.toSeq).flatMap(lines => ZIO.collectAll(lines.map(ZIO.succeed)))
       val getPalindromes: Task[Seq[String]] =
         for {
           words <- getWords
           palindromes <- filterPalindromes(words)
-          sortedPalindromes <- IO.attempt(palindromes.sortBy(word => (-word.length, word)))
+          sortedPalindromes <- ZIO.attempt(palindromes.sortBy(word => (-word.length, word)))
         } yield sortedPalindromes
       getPalindromes
     }
@@ -60,6 +60,6 @@ object FindPalindromesNonStreaming extends ZIOAppDefault:
   private def filterPalindromes(words: Seq[String]): Task[Seq[String]] =
     ZIO.filter(words)(isPalindrome).map(_.filter(_.lengthIs >= 2))
 
-  private def isPalindrome(s: String): Task[Boolean] = Task.attempt(s.equalsIgnoreCase(s.reverse))
+  private def isPalindrome(s: String): Task[Boolean] = ZIO.attempt(s.equalsIgnoreCase(s.reverse))
 
 end FindPalindromesNonStreaming

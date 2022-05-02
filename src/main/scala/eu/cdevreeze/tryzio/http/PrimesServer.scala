@@ -45,36 +45,36 @@ object PrimesServer extends ZIOAppDefault:
 
   val httpApp: HttpApp[Any, Nothing] = Http.collectZIO[Request] {
     case req @ Method.GET -> !! / "primes" / number =>
-      val getOptNum: Task[Option[BigInt]] = IO.attempt(BigInt(number)).asSome
+      val getOptNum: Task[Option[BigInt]] = ZIO.attempt(BigInt(number)).asSome
 
       getOptNum
         .flatMap { optNum =>
           optNum match
             case None =>
-              IO.succeed(Response.fromHttpError(HttpError.BadRequest(s"Not an integer: $number")))
+              ZIO.succeed(Response.fromHttpError(HttpError.BadRequest(s"Not an integer: $number")))
             case Some(num) =>
               val getPrimes: Task[Seq[BigInt]] = Primes.findPrimes(num)
               getPrimes
                 .map(primes => Response.text(s"Primes <= $num: ${primes.mkString(", ")}"))
-                .catchAll(_ => IO.succeed(Response.fromHttpError(HttpError.InternalServerError(s"No primes found for $number"))))
+                .catchAll(_ => ZIO.succeed(Response.fromHttpError(HttpError.InternalServerError(s"No primes found for $number"))))
         }
-        .tap(_ => IO.attempt(req.url.path.toString).flatMap(path => showThread(path)))
+        .tap(_ => ZIO.attempt(req.url.path.toString).flatMap(path => showThread(path)))
         .orDie
     case req @ Method.GET -> !! / "primeFactors" / number =>
-      val getOptNum: Task[Option[BigInt]] = IO.attempt(BigInt(number)).asSome
+      val getOptNum: Task[Option[BigInt]] = ZIO.attempt(BigInt(number)).asSome
 
       getOptNum
         .flatMap { optNum =>
           optNum match
             case None =>
-              IO.succeed(Response.fromHttpError(HttpError.BadRequest(s"Not an integer: $number")))
+              ZIO.succeed(Response.fromHttpError(HttpError.BadRequest(s"Not an integer: $number")))
             case Some(num) =>
               val getPrimeFactors: Task[Primes.PrimeFactors] = Primes.findPrimeFactors(num)
               getPrimeFactors
                 .map(factors => Response.text(s"Prime factors of $num: ${factors.getFactors.mkString(", ")}"))
-                .catchAll(_ => IO.succeed(Response.fromHttpError(HttpError.InternalServerError(s"No prime factors found for $number"))))
+                .catchAll(_ => ZIO.succeed(Response.fromHttpError(HttpError.InternalServerError(s"No prime factors found for $number"))))
         }
-        .tap(_ => IO.attempt(req.url.path.toString).flatMap(path => showThread(path)))
+        .tap(_ => ZIO.attempt(req.url.path.toString).flatMap(path => showThread(path)))
         .orDie
   }
 
@@ -84,7 +84,7 @@ object PrimesServer extends ZIOAppDefault:
       .flatMap { args =>
         ZIO.attempt(args.headOption.getOrElse(defaultPort.toString).toInt)
       }
-      .catchAll(_ => IO.succeed(defaultPort))
+      .catchAll(_ => ZIO.succeed(defaultPort))
 
     def printServerStarted(port: Int): ZIO[Any, IOException, Unit] = printLine(s"Server started on port $port")
 

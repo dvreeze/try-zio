@@ -29,7 +29,7 @@ object GuessNumber extends ZIOAppDefault:
 
   def run: Task[Boolean] =
     val getInitialAttemptNumber: UIO[Ref[Int]] = Ref.make(0)
-    def getNextAttemptNumber(ref: Ref[Int]): UIO[Ref[Int]] = ref.update(_ + 1) *> IO.succeed(ref)
+    def getNextAttemptNumber(ref: Ref[Int]): UIO[Ref[Int]] = ref.update(_ + 1) *> ZIO.succeed(ref)
 
     for {
       ref <- getInitialAttemptNumber
@@ -44,7 +44,7 @@ object GuessNumber extends ZIOAppDefault:
       _ <- printLine("")
       _ <- printLine(s"Attempt $attempt. Guess a number between 0 and 10 (inclusive):")
       guessedNumStr <- readLine
-      guessedIt <- IO.succeed(guessedNumStr.toIntOption.contains(num))
+      guessedIt <- ZIO.succeed(guessedNumStr.toIntOption.contains(num))
       _ <- printLine(if guessedIt then "You guessed the number" else s"You did not guess the number ($num)")
     } yield guessedIt
   end guessOnce

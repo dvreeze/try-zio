@@ -95,8 +95,8 @@ object PrimesTest extends ZIOSpecDefault:
     Gen(nonPrimeStream.map(n => Some(Sample.noShrink(n))))
 
   private def multiply(numbers: List[BigInt]): Task[BigInt] =
-    if numbers.isEmpty then Task.fail(sys.error("Expected at least one number to multiply"))
-    else if numbers.sizeIs == 1 then Task.succeed(numbers.head)
-    else Task.attempt(numbers.head).flatMap(n => multiply(numbers.tail).map(_ * n))
+    if numbers.isEmpty then ZIO.fail(sys.error("Expected at least one number to multiply"))
+    else if numbers.sizeIs == 1 then ZIO.succeed(numbers.head)
+    else ZIO.attempt(numbers.head).flatMap(n => multiply(numbers.tail).map(_ * n))
 
 end PrimesTest

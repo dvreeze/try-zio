@@ -112,24 +112,24 @@ class PrimeFactorServlet extends HttpServlet:
 
   // ZIO functional effect
   private def getResponseTextTask(numberAsString: String, servletPath: String): Task[Option[String]] =
-    val getOptNum: Task[Option[BigInt]] = Task.attempt(BigInt(numberAsString)).asSome
+    val getOptNum: Task[Option[BigInt]] = ZIO.attempt(BigInt(numberAsString)).asSome
 
     getOptNum
       .flatMap { optNum =>
         optNum match
-          case None => IO.succeed(None)
+          case None => ZIO.succeed(None)
           case Some(num) =>
             val getPrimeFactors: Task[Primes.PrimeFactors] = Primes.findPrimeFactors(num)
             getPrimeFactors
               .map(factors => Some(s"Prime factors of $num: ${factors.getFactors.mkString(", ")}"))
-              .catchAll(_ => IO.fail(new ServletException(s"No prime factors found for $numberAsString")))
+              .catchAll(_ => ZIO.fail(new ServletException(s"No prime factors found for $numberAsString")))
       }
-      .tap(_ => IO.attempt(servletPath).flatMap(path => showThreadTask(path, "a ZIO 'do real work' thread")))
+      .tap(_ => ZIO.attempt(servletPath).flatMap(path => showThreadTask(path, "a ZIO 'do real work' thread")))
   end getResponseTextTask
 
   // ZIO functional effect
   private def showThreadTask(url: String, source: String): Task[Unit] =
-    IO.attempt(showThread(url, source))
+    ZIO.attempt(showThread(url, source))
 
   private def showThread(url: String, source: String): Unit =
     println(s"URL: $url. Current thread (from $source): ${Thread.currentThread()}")

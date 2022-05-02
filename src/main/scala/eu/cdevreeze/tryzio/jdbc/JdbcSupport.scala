@@ -177,7 +177,7 @@ object JdbcSupport:
       ZIO
         .scoped {
           manageTx.flatMap { tx =>
-            f(tx).tapError(_ => IO.succeed(tx.onlyRollback()))
+            f(tx).tapError(_ => ZIO.succeed(tx.onlyRollback()))
           }
         }
         .pipe(ZIO.blocking(_))
@@ -204,13 +204,13 @@ object JdbcSupport:
     // TODO Improve the functions below
 
     private def startTransaction(): Task[Transaction] =
-      Task.attempt {
+      ZIO.attempt {
         val conn = ds.getConnection()
         Transaction.start(conn, config.isolationLevel)
       }
 
     private def finishTransaction(tx: Transaction): UIO[Unit] =
-      Task.fromTry {
+      ZIO.fromTry {
         Try {
           if tx.rollbackOnly.get then tx.rollback() else tx.commit()
         }.recover(_ => ())
@@ -221,11 +221,11 @@ object JdbcSupport:
 
   final class UsingDataSource(val ds: DataSource) extends QueryApi:
     def execute[A](f: Connection => Task[A]): Task[A] =
-      execute(Task.attempt(ds.getConnection))(f)
+      execute(ZIO.attempt(ds.getConnection))(f)
 
     def execute[A](acquireConn: Task[Connection])(f: Connection => Task[A]): Task[A] =
       val manageConn: ScopedTask[Connection] =
-        ZIO.acquireRelease(acquireConn)(conn => Task.succeed(conn.close()))
+        ZIO.acquireRelease(acquireConn)(conn => ZIO.succeed(conn.close()))
       ZIO.scoped(manageConn.flatMap(f)).pipe(ZIO.blocking(_))
 
     def query[A](sqlString: String, args: Seq[Argument])(rowMapper: (ResultSet, Int) => A): Task[Seq[A]] =
@@ -261,21 +261,21 @@ object JdbcSupport:
       execute(psc(conn))(ps => queryForSingleResult(ps, resultSetExtractor))
 
     def update(sqlString: String, args: Seq[Argument]): Task[Int] =
-      execute(sqlString, args)(ps => Task.attempt(ps.executeUpdate()))
+      execute(sqlString, args)(ps => ZIO.attempt(ps.executeUpdate()))
 
     def update(psc: Connection => Task[PreparedStatement]): Task[Int] =
-      execute(psc(conn))(ps => Task.attempt(ps.executeUpdate()))
+      execute(psc(conn))(ps => ZIO.attempt(ps.executeUpdate()))
 
     private def execute[A](sqlString: String, args: Seq[Argument])(f: PreparedStatement => Task[A]): Task[A] =
       execute(createPreparedStatement(sqlString, args))(f)
 
     private def execute[A](acquirePs: Task[PreparedStatement])(f: PreparedStatement => Task[A]): Task[A] =
       val managePs: ScopedTask[PreparedStatement] =
-        ZIO.acquireRelease(acquirePs)(ps => Task.succeed(ps.close()))
+        ZIO.acquireRelease(acquirePs)(ps => ZIO.succeed(ps.close()))
       ZIO.scoped(managePs.flatMap(f)).pipe(ZIO.blocking(_))
 
     private def createPreparedStatement(sqlString: String, args: Seq[Argument]): Task[PreparedStatement] =
-      Task.attempt {
+      ZIO.attempt {
         val ps = conn.prepareStatement(sqlString)
         args.zipWithIndex.foreach { (arg, index) => arg.applyTo(ps, index + 1) }
         ps
@@ -284,10 +284,10 @@ object JdbcSupport:
     private def queryForResults[A](ps: PreparedStatement, rowMapper: (ResultSet, Int) => A): Task[Seq[A]] =
       // Database query is run in "acquire ResultSet" step. Is that ok?
       val manageRs: ScopedTask[ResultSet] =
-        ZIO.acquireRelease(Task.attempt(ps.executeQuery()))(rs => Task.succeed(rs.close()))
+        ZIO.acquireRelease(ZIO.attempt(ps.executeQuery()))(rs => ZIO.succeed(rs.close()))
       ZIO.scoped {
         manageRs.flatMap { rs =>
-          Task.attempt {
+          ZIO.attempt {
             Iterator.from(1).takeWhile(_ => rs.next).map(idx => rowMapper(rs, idx)).toSeq // 1-based?
           }
         }
@@ -296,10 +296,10 @@ object JdbcSupport:
     private def queryForSingleResult[A](ps: PreparedStatement, resultSetExtractor: ResultSet => A): Task[A] =
       // Database query is run in "acquire ResultSet" step. Is that ok?
       val manageRs: ScopedTask[ResultSet] =
-        ZIO.acquireRelease(Task.attempt(ps.executeQuery()))(rs => Task.succeed(rs.close()))
+        ZIO.acquireRelease(ZIO.attempt(ps.executeQuery()))(rs => ZIO.succeed(rs.close()))
       ZIO.scoped {
         manageRs.flatMap { rs =>
-          Task.attempt { resultSetExtractor(rs) }
+          ZIO.attempt { resultSetExtractor(rs) }
         }
       }
   end UsingConnection

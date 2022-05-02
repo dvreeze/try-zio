@@ -58,9 +58,9 @@ object Primes:
    * Finds all prime numbers smaller than or equal to the parameter number.
    */
   def findPrimes(n: BigInt): Task[Seq[BigInt]] =
-    val getRoots: Task[List[BigInt]] = Task.attempt(two.to(n).toList.filterNot(skipAsRoot))
+    val getRoots: Task[List[BigInt]] = ZIO.attempt(two.to(n).toList.filterNot(skipAsRoot))
 
-    if n < 2 then IO.succeed(Seq.empty)
+    if n < 2 then ZIO.succeed(Seq.empty)
     else getRoots.flatMap(roots => discardMultiplesOfRoots(roots))
   end findPrimes
 
@@ -68,21 +68,21 @@ object Primes:
    * Finds all prime factors of the given number.
    */
   def findPrimeFactors(n: BigInt): Task[PrimeFactors] =
-    if n < two then IO.fail(new RuntimeException("Expected a number >= 2"))
+    if n < two then ZIO.fail(new RuntimeException("Expected a number >= 2"))
     else findPrimeFactors(n, two, PrimeFactors(Nil)).map(_.asc)
 
   private def discardMultiplesOfRoots(numbers: List[BigInt]): Task[List[BigInt]] =
-    two.to(numbers.lastOption.getOrElse(one)).foldLeft(Task.attempt(numbers)) { (getAccNumbers, nextRoot) =>
+    two.to(numbers.lastOption.getOrElse(one)).foldLeft(ZIO.attempt(numbers)) { (getAccNumbers, nextRoot) =>
       getAccNumbers.flatMap(accNumbers => discardMultiplesOfRoot(accNumbers, nextRoot))
     }
   end discardMultiplesOfRoots
 
   private def discardMultiplesOfRoot(numbers: List[BigInt], root: BigInt): Task[List[BigInt]] =
-    if numbers.isEmpty then IO.succeed(numbers)
+    if numbers.isEmpty then ZIO.succeed(numbers)
     else
       val last: BigInt = numbers.last
       if numbers.contains(root) then
-        IO.attempt {
+        ZIO.attempt {
           val multiples: Set[BigInt] = 1
             .to(numbers.size)
             .scanLeft(root * two) { (acc, _) => acc + root }
@@ -90,13 +90,13 @@ object Primes:
             .toSet
           numbers.filterNot(multiples.contains)
         }
-      else IO.succeed(numbers)
+      else ZIO.succeed(numbers)
     end if
   end discardMultiplesOfRoot
 
   @tailrec
   private def findPrimeFactors(n: BigInt, nextPotentialFactor: BigInt, acc: PrimeFactors): Task[PrimeFactors] =
-    if n == one then IO.succeed(acc)
+    if n == one then ZIO.succeed(acc)
     else if skipAsRoot(nextPotentialFactor) then findPrimeFactors(n, nextPotentialFactor + 1, acc)
     else if !isDivisibleBy(n, nextPotentialFactor) then findPrimeFactors(n, nextPotentialFactor + 1, acc)
     else

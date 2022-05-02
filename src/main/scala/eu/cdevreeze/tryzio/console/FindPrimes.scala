@@ -31,11 +31,11 @@ object FindPrimes extends ZIOAppDefault:
   def run: Task[Unit] =
     for {
       _ <- printLine("Enter an integer number:")
-      num <- readLine.flatMap(n => IO.attempt(BigInt(n)).tapError(n => printLine(s"Not an integer number: $n")))
+      num <- readLine.flatMap(n => ZIO.attempt(BigInt(n)).tapError(n => printLine(s"Not an integer number: $n")))
       _ <- printLine(s"The prime numbers smaller than or equal to $num are:")
       primesFiber <- Primes.findPrimes(num).fork
       primes <- primesFiber.join
-      sortedPrimes <- IO.attempt(primes.sorted)
+      sortedPrimes <- ZIO.attempt(primes.sorted)
       _ <- ZIO.foreach(sortedPrimes)(p => printLine(p))
     } yield ()
 

@@ -126,16 +126,16 @@ final class TermRepoImpl(val conn: Connection) extends TermRepo:
 
   def findAllTerms(): Task[Seq[Term]] =
     for {
-      dsl <- Task.attempt(makeDsl())
-      sql <- Task.attempt(baseTermSql(dsl))
+      dsl <- ZIO.attempt(makeDsl())
+      sql <- ZIO.attempt(baseTermSql(dsl))
       rows <- using(conn).query(sql.getSQL, Seq.empty)(mapTermRow)
       terms <- ZIO.attempt(rows.map(_.toTerm))
     } yield terms
 
   def findTerm(termId: Long): Task[Option[Term]] =
     for {
-      dsl <- Task.attempt(makeDsl())
-      sql <- Task.attempt(baseTermSql(dsl).where(WP_TERMS.TERM_ID.equal(`val`("dummyTermIdArg", BIGINTUNSIGNED))))
+      dsl <- ZIO.attempt(makeDsl())
+      sql <- ZIO.attempt(baseTermSql(dsl).where(WP_TERMS.TERM_ID.equal(`val`("dummyTermIdArg", BIGINTUNSIGNED))))
       rows <- using(conn).query(sql.getSQL, Seq(Argument.LongArg(termId)))(mapTermRow)
       rowOption = rows.headOption
       termOption <- ZIO.attempt(rowOption.map(_.toTerm))
@@ -143,8 +143,8 @@ final class TermRepoImpl(val conn: Connection) extends TermRepo:
 
   def findTermByName(name: String): Task[Option[Term]] =
     for {
-      dsl <- Task.attempt(makeDsl())
-      sql <- Task.attempt(baseTermSql(dsl).where(WP_TERMS.NAME.equal(`val`("dummyNameArg", VARCHAR))))
+      dsl <- ZIO.attempt(makeDsl())
+      sql <- ZIO.attempt(baseTermSql(dsl).where(WP_TERMS.NAME.equal(`val`("dummyNameArg", VARCHAR))))
       rows <- using(conn).query(sql.getSQL, Seq(Argument.StringArg(name)))(mapTermRow)
       rowOption = rows.headOption
       termOption <- ZIO.attempt(rowOption.map(_.toTerm))
@@ -152,8 +152,8 @@ final class TermRepoImpl(val conn: Connection) extends TermRepo:
 
   def findAllTermTaxonomies(): Task[Seq[TermTaxonomy]] =
     for {
-      dsl <- Task.attempt(makeDsl())
-      sql <- Task.attempt(createFullQuery(Seq(baseTermTaxonomyCte(dsl)), _.select().from(table("term_taxos")), dsl))
+      dsl <- ZIO.attempt(makeDsl())
+      sql <- ZIO.attempt(createFullQuery(Seq(baseTermTaxonomyCte(dsl)), _.select().from(table("term_taxos")), dsl))
       rows <- using(conn).query(sql.getSQL, Seq.empty)(mapTermTaxonomyRow)
       termTaxonomies <- ZIO.attempt(TermTaxonomyRow.toTermTaxonomies(rows))
     } yield termTaxonomies
@@ -178,8 +178,8 @@ final class TermRepoImpl(val conn: Connection) extends TermRepo:
 
     val filteredTermTaxonomies =
       for {
-        dsl <- Task.attempt(makeDsl())
-        sql <- Task.attempt(makeSql(dsl))
+        dsl <- ZIO.attempt(makeDsl())
+        sql <- ZIO.attempt(makeSql(dsl))
         rows <- using(conn).query(sql.getSQL, Seq(Argument.LongArg(termTaxoId)))(mapTermTaxonomyRow)
         termTaxonomies <- ZIO.attempt(TermTaxonomyRow.toTermTaxonomies(rows))
       } yield termTaxonomies
@@ -216,8 +216,8 @@ final class TermRepoImpl(val conn: Connection) extends TermRepo:
 
     val filteredTermTaxonomies =
       for {
-        dsl <- Task.attempt(makeDsl())
-        sql <- Task.attempt(makeSql(dsl))
+        dsl <- ZIO.attempt(makeDsl())
+        sql <- ZIO.attempt(makeSql(dsl))
         rows <- using(conn).query(sql.getSQL, Seq(Argument.LongArg(termId)))(mapTermTaxonomyRow)
         termTaxonomies <- ZIO.attempt(TermTaxonomyRow.toTermTaxonomies(rows))
       } yield termTaxonomies
@@ -254,8 +254,8 @@ final class TermRepoImpl(val conn: Connection) extends TermRepo:
 
     val filteredTermTaxonomies =
       for {
-        dsl <- Task.attempt(makeDsl())
-        sql <- Task.attempt(makeSql(dsl))
+        dsl <- ZIO.attempt(makeDsl())
+        sql <- ZIO.attempt(makeSql(dsl))
         rows <- using(conn).query(sql.getSQL, Seq(Argument.StringArg(termName)))(mapTermTaxonomyRow)
         termTaxonomies <- ZIO.attempt(TermTaxonomyRow.toTermTaxonomies(rows))
       } yield termTaxonomies
