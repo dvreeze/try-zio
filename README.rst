@@ -18,7 +18,7 @@ Next run some Docker commands (where the volumes must be created only once, and 
 
 * sudo docker volume create mysql-data-volume
 * sudo docker volume create wordpress-www-volume
-* sudo docker run --name mysql-wordpress -e MYSQL_ROOT_PASSWORD=root -d -p 3306:3306 -v mysql-data-volume:/mysql-data mysql:latest
+* sudo docker run --name mysql-wordpress -e MYSQL_ROOT_PASSWORD=root -d -p 3306:3306 -v mysql-data-volume:/var/lib/mysql mysql:latest
 * sudo docker cp ./wordpress-dump.sql mysql-wordpress:/tmp/wordpress-dump.sql
 * sudo docker exec -it mysql-wordpress bash
 
