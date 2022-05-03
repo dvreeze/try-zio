@@ -12,34 +12,38 @@ Before running console programs and tests, and even before compiling, a few step
 The idea is to first start a MySQL Docker container, do a "docker exec" into it, and then use the mysql
 client to create and fill the Wordpress database:
 
-* Navigate to a directory where the data should be stored, and create datadir and shared sub-directories
-* Copy the datadump/wordpress-dump.sql file to the shared sub-directory
+* First pick up the wordpress-dump.sql file, and "cd" to the containing directory
 
-Next run some Docker commands:
+Next run some Docker commands (where the volumes must be created only once, and never removed):
 
-* sudo docker run --name mysql-wordpress -e MYSQL_ROOT_PASSWORD=root -d -p 3306:3306 -v $PWD/datadir:/var/lib/mysql -v $PWD/shared:/shared mysql:latest
+* sudo docker volume create mysql-data-volume
+* sudo docker volume create wordpress-www-volume
+* sudo docker run --name mysql-wordpress -e MYSQL_ROOT_PASSWORD=root -d -p 3306:3306 -v mysql-data-volume:/mysql-data mysql:latest
+* sudo docker cp ./wordpress-dump.sql mysql-wordpress:/tmp/wordpress-dump.sql
 * sudo docker exec -it mysql-wordpress bash
 
 Inside that bash session, enter the following commands (entering the password when prompted):
 
 * mysql -p
 * create database wordpress; -- only the first time, if the database does not yet exist
-* exit -- leaving mysql, but staying inside the Docker container
-* mysql -u root -p wordpress < /shared/wordpress-dump.sql
+* exit; -- leaving mysql, but staying inside the Docker container
+* mysql -u root -p wordpress < /tmp/wordpress-dump.sql
 * mysql -p
 * show databases;
 * use wordpress; -- must exist
 * show tables; -- must have tables
 * select count(*) from wp_posts; -- must be non-zero
-* exit -- leaving mysql, but still inside the Docker container
-* exit -- now no longer connected to the running mysql-wordpress container
+* exit; -- leaving mysql, but still inside the Docker container
+* exit
+
+Now we are no longer connected to the running mysql-wordpress container.
 
 If the mysql-wordpress container is stopped, it can be started again, of course. If it is removed,
-it must be created and started again, yet the database data should still be there.
+it must be created and started again, yet the database data should still be there, in volume mysql-data-volume.
 
 Database content can be dumped into a dump file (for later imports) in a mysql session as follows:
 
-* mysqldump -u root -p wordpress > /shared/wordpress-dump-2.sql
+* mysqldump -u root -p wordpress > /tmp/wordpress-dump-2.sql
 
 Next, with the mysql-wordpress Docker container running, start an sbt session in a terminal with the
 root of this project as current directory. As part of the build, a jOOQ code generation task will
@@ -50,7 +54,7 @@ Now we are set up to run programs, tests, etc. If we want to run Wordpress as we
 running MySQL Docker container, enter the following command (in the same current directory as
 where we started MySQL):
 
-* sudo docker run -e WORDPRESS_DB_USER=root -e WORDPRESS_DB_PASSWORD=root --name wordpress --link mysql-wordpress:mysql -p 8080:80 -v "$PWD/html":/var/www/html -d wordpress
+* sudo docker run -e WORDPRESS_DB_USER=root -e WORDPRESS_DB_PASSWORD=root --name wordpress --link mysql-wordpress:mysql -p 8080:80 -v wordpress-www-volume:/var/www/html -d wordpress
 
 Learning ZIO
 ============
