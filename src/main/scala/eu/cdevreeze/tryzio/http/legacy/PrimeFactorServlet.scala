@@ -95,10 +95,12 @@ class PrimeFactorServlet extends HttpServlet:
     // Yet another "async" boundary (and therefore thread switch).
     // TODO How to run parts of the resulting ZIO effect in a blocking way (without too many memory barriers and lack of cancellability)?
     val responseTextOptionFuture: CancelableFuture[Either[Throwable, Option[String]]] =
-      Runtime.default.unsafeRunToFuture {
-        getResponseTextTask(numberString.stripPrefix("/"), path.toString)
-          .timeoutFail(new RuntimeException("Timeout"))(60.seconds) // Must be smaller than request timeout, if any
-          .either
+      Unsafe.unsafe {
+        Runtime.default.unsafe.runToFuture {
+          getResponseTextTask(numberString.stripPrefix("/"), path.toString)
+            .timeoutFail(new RuntimeException("Timeout"))(60.seconds) // Must be smaller than request timeout, if any
+            .either
+        }
       }
 
     // Another potential thread switch, using the safely published atomic reference to the HttpServletResponse.
