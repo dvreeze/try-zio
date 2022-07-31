@@ -32,10 +32,10 @@ ThisBuild / pomExtra := pomData
 ThisBuild / pomIncludeRepository := { _ => false }
 
 val zioVersion = "2.0.0"
-val zioJsonVersion = "0.3.0-RC9"
-val zioHttpVersion = "2.0.0-RC9"
-val testContainersVersion = "1.16.3"
-val jooqVersion = "3.16.6"
+val zioJsonVersion = "0.3.0-RC10"
+val zioHttpVersion = "2.0.0-RC10"
+val testContainersVersion = "1.17.3"
+val jooqVersion = "3.16.8"
 
 ThisBuild / libraryDependencies += "dev.zio" %% "zio" % zioVersion
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-streams" % zioVersion
@@ -47,14 +47,13 @@ ThisBuild / libraryDependencies += "dev.zio" %% "zio-test-junit" % zioVersion % 
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-json" % zioJsonVersion
 
 ThisBuild / libraryDependencies += "io.d11" %% "zhttp" % zioHttpVersion
-ThisBuild / libraryDependencies += "io.d11" %% "zhttp-test" % zioHttpVersion % Test
 
 ThisBuild / libraryDependencies += "javax.servlet" % "servlet-api" % "3.0-alpha-1" % Provided
 
-ThisBuild / libraryDependencies += "org.apache.tomcat.embed" % "tomcat-embed-core" % "10.1.0-M14"
+ThisBuild / libraryDependencies += "org.apache.tomcat.embed" % "tomcat-embed-core" % "10.1.0-M17"
 
 ThisBuild / libraryDependencies += "org.testcontainers" % "mysql" % testContainersVersion % Test
-ThisBuild / libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.28"
+ThisBuild / libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.30"
 ThisBuild / libraryDependencies += "com.zaxxer" % "HikariCP" % "5.0.1" // requires Java 11+
 
 ThisBuild / libraryDependencies += "org.jooq" % "jooq" % jooqVersion
