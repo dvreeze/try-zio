@@ -65,9 +65,11 @@ The ideas behind ZIO are well explained in `this overview of the background of Z
 the (FP) idea of exclusively using **pure functions** ("*DTP*": deterministic, total, pure). Counterexamples
 are functions the outputs of which partly depend on the current time (not deterministic), the *List.head*
 function that takes the head of the List (not total), and functions that depend on global state not passed
-as parameters (not pure). Also central is the idea of **functional effects**, which are *immutable* data
-structures modelling procedural effects (*programs as values*). Programs then combine functional effects,
-and only "at the end" the resulting functional effect is run. These (functional) programs can therefore
+as parameters (not pure).
+
+Also central is the idea of **functional effects**, which are *immutable* data structures modelling procedural
+effects (*programs as values*, or *program recipes* rather than running programs). Programs then combine functional
+effects, and only "at the end" the resulting functional effect is run. These (functional) programs can therefore
 be reasoned about very well, limiting the side-effects to the code that actually hits the "run button"
 on the combined functional effect.
 
