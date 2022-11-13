@@ -253,7 +253,7 @@ Of course I would rather use ZIO with zio-http instead.
 
 .. _`ZIO`: https://zio.dev/
 .. _`jOOQ`: https://www.jooq.org/
-.. _`this overview of the background of ZIO`: https://zio.dev/next/overview/overview_background
+.. _`this overview of the background of ZIO`: https://zio.dev/version-1.x/overview/overview_background
 .. _`this talk`: https://www.youtube.com/watch?v=qgfCmQ-2tW0
 .. _`this article about ZIO`: https://degoes.net/articles/zio-environment
 .. _`Monix`: https://monix.io/

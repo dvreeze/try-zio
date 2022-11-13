@@ -1,7 +1,5 @@
 
-import JooqCodegen._
-
-val scalaVer = "3.1.2"
+val scalaVer = "3.2.1"
 val crossScalaVer = Seq(scalaVer)
 
 ThisBuild / description  := "Trying out ZIO"
@@ -31,11 +29,11 @@ ThisBuild / publishTo := {
 ThisBuild / pomExtra := pomData
 ThisBuild / pomIncludeRepository := { _ => false }
 
-val zioVersion = "2.0.0"
-val zioJsonVersion = "0.3.0-RC10"
-val zioHttpVersion = "2.0.0-RC10"
-val testContainersVersion = "1.17.3"
-val jooqVersion = "3.16.8"
+val zioVersion = "2.0.3"
+val zioJsonVersion = "0.3.0"
+val zioHttpVersion = "2.0.0-RC10" // 2.0.0-RC11 misses Response.bodyAsString etc.?
+val testContainersVersion = "1.17.5"
+val jooqVersion = "3.16.11" // Works with Java 11
 
 ThisBuild / libraryDependencies += "dev.zio" %% "zio" % zioVersion
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-streams" % zioVersion
@@ -50,10 +48,10 @@ ThisBuild / libraryDependencies += "io.d11" %% "zhttp" % zioHttpVersion
 
 ThisBuild / libraryDependencies += "javax.servlet" % "servlet-api" % "3.0-alpha-1" % Provided
 
-ThisBuild / libraryDependencies += "org.apache.tomcat.embed" % "tomcat-embed-core" % "10.1.0-M17"
+ThisBuild / libraryDependencies += "org.apache.tomcat.embed" % "tomcat-embed-core" % "10.1.0"
 
 ThisBuild / libraryDependencies += "org.testcontainers" % "mysql" % testContainersVersion % Test
-ThisBuild / libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.30"
+ThisBuild / libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.31"
 ThisBuild / libraryDependencies += "com.zaxxer" % "HikariCP" % "5.0.1" // requires Java 11+
 
 ThisBuild / libraryDependencies += "org.jooq" % "jooq" % jooqVersion
@@ -62,7 +60,7 @@ ThisBuild / libraryDependencies += "org.jooq" % "jooq-codegen" % jooqVersion
 // Used by JOOQ
 ThisBuild / libraryDependencies += "org.jetbrains" % "annotations" % "23.0.0"
 
-ThisBuild / libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.11"
+ThisBuild / libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.4.4"
 
 ThisBuild / testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 
@@ -100,4 +98,3 @@ lazy val pomData =
       <email>chris.de.vreeze@caiway.net</email>
     </developer>
   </developers>
-
