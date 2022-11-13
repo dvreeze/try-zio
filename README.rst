@@ -68,10 +68,10 @@ function that takes the head of the List (not total), and functions that depend 
 as parameters (not pure).
 
 Also central is the idea of **functional effects**, which are *immutable* data structures modelling procedural
-effects (*programs as values*, or *program recipes* rather than running programs). Programs then combine functional
-effects, and only "at the end" the resulting functional effect is run. These (functional) programs can therefore
-be reasoned about very well, limiting the side-effects to the code that actually hits the "run button"
-on the combined functional effect.
+effects (*programs as values*, or *program recipes* rather than running programs). Application programs then
+combine functional effects, and only "at the end" the resulting functional effect is run. These (functional)
+programs can thereforebe reasoned about very well, limiting the side-effects to the code that actually hits the
+"run button"on the combined functional effect.
 
 Functional effects are also known as *IO monads*. The latter term indicates that functional effects
 can be combined into larger functional effects using functions like *map* and *flatMap*. In typical
