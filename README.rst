@@ -71,7 +71,7 @@ Also central is the idea of **functional effects**, which are *immutable* data s
 effects (*programs as values*, or *program recipes* rather than running programs). Application programs then
 combine functional effects, and only "at the end" the resulting functional effect is run. These (functional)
 programs can thereforebe reasoned about very well, limiting the side-effects to the code that actually hits the
-"run button"on the combined functional effect.
+"run button" on the combined functional effect.
 
 Functional effects are also known as *IO monads*. The latter term indicates that functional effects
 can be combined into larger functional effects using functions like *map* and *flatMap*. In typical
