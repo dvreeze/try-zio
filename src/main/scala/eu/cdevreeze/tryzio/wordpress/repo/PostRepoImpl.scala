@@ -21,9 +21,10 @@ import java.sql.ResultSet
 import java.time.Instant
 
 import scala.util.Try
+import scala.util.Using
 import scala.util.chaining.*
 
-import eu.cdevreeze.tryzio.jdbc.JdbcSupport.*
+import eu.cdevreeze.tryzio.jdbc.*
 import eu.cdevreeze.tryzio.jooq.generated.wordpress.Tables.*
 import eu.cdevreeze.tryzio.wordpress.model.CommentStatus
 import eu.cdevreeze.tryzio.wordpress.model.Post
@@ -56,7 +57,7 @@ import zio.json.*
  * @author
  *   Chris de Vreeze
  */
-final class PostRepoImpl(val conn: Connection) extends PostRepo:
+final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo:
 
   private def makeDsl(): DSLContext = DSL.using(SQLDialect.MYSQL)
 
@@ -160,7 +161,13 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
     for {
       dsl <- ZIO.attempt(makeDsl())
       sql <- ZIO.attempt(createFullQuery(Seq(basePostCte(dsl)), _.select().from(table("posts")), dsl))
-      rows <- using(conn).query(sql.getSQL, Seq.empty)(mapPostRow)
+      rows <- cp.transaction.mapAttempt { conn =>
+        Using.resource(conn.connection.prepareStatement(sql.getSQL)) { ps =>
+          Using.resource(ps.executeQuery()) { rs =>
+            Iterator.from(1).takeWhile(_ => rs.next).map(idx => mapPostRow(rs, idx)).toSeq
+          }
+        }
+      }
       posts <- ZIO.attempt(PostRow.toPosts(rows))
       filteredPosts <- ZIO.filter(posts)(p)
     } yield filteredPosts
@@ -191,7 +198,14 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
       for {
         dsl <- ZIO.attempt(makeDsl())
         sql <- ZIO.attempt(makeSql(dsl))
-        rows <- using(conn).query(sql.getSQL, Seq(Argument.LongArg(postId)))(mapPostRow)
+        rows <- cp.transaction.mapAttempt { conn =>
+          Using.resource(conn.connection.prepareStatement(sql.getSQL)) { ps =>
+            ps.setLong(1, postId)
+            Using.resource(ps.executeQuery()) { rs =>
+              Iterator.from(1).takeWhile(_ => rs.next).map(idx => mapPostRow(rs, idx)).toSeq
+            }
+          }
+        }
         posts <- ZIO.attempt(PostRow.toPosts(rows))
       } yield posts
 
@@ -222,7 +236,14 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
       for {
         dsl <- ZIO.attempt(makeDsl())
         sql <- ZIO.attempt(makeSql(dsl))
-        rows <- using(conn).query(sql.getSQL, Seq(Argument.StringArg(name)))(mapPostRow)
+        rows <- cp.transaction.mapAttempt { conn =>
+          Using.resource(conn.connection.prepareStatement(sql.getSQL)) { ps =>
+            ps.setString(1, name)
+            Using.resource(ps.executeQuery()) { rs =>
+              Iterator.from(1).takeWhile(_ => rs.next).map(idx => mapPostRow(rs, idx)).toSeq
+            }
+          }
+        }
         posts <- ZIO.attempt(PostRow.toPosts(rows))
       } yield posts
 
@@ -233,6 +254,9 @@ final class PostRepoImpl(val conn: Connection) extends PostRepo:
   private def emptyToNone(v: String): Option[String] = if v.isEmpty then None else Some(v)
 
 object PostRepoImpl:
+
+  val layer: ZLayer[ZConnectionPool, Throwable, PostRepo] =
+    ZLayer.fromFunction(cp => PostRepoImpl(cp))
 
   private case class PostRow(
       postId: Long,

@@ -1,5 +1,5 @@
 
-val scalaVer = "3.2.1"
+val scalaVer = "3.2.2"
 val crossScalaVer = Seq(scalaVer)
 
 ThisBuild / description  := "Trying out ZIO"
@@ -29,10 +29,12 @@ ThisBuild / publishTo := {
 ThisBuild / pomExtra := pomData
 ThisBuild / pomIncludeRepository := { _ => false }
 
-val zioVersion = "2.0.3"
-val zioJsonVersion = "0.3.0"
+val zioVersion = "2.0.9"
+val zioJsonVersion = "0.4.2"
+// val zioHttpVersion = "1.0.0.0-RC27"
 val zioHttpVersion = "2.0.0-RC10" // 2.0.0-RC11 misses Response.bodyAsString etc.?
-val testContainersVersion = "1.17.5"
+val zioConfigVersion = "4.0.0-RC10"
+val testContainersVersion = "1.17.6"
 val jooqVersion = "3.16.11" // Works with Java 11
 
 ThisBuild / libraryDependencies += "dev.zio" %% "zio" % zioVersion
@@ -42,25 +44,29 @@ ThisBuild / libraryDependencies += "dev.zio" %% "zio-test-sbt" % zioVersion % Te
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-test-magnolia" % zioVersion % Test
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-test-junit" % zioVersion % Test
 
+ThisBuild / libraryDependencies += "dev.zio" %% "zio-config" % zioConfigVersion
+// ThisBuild / libraryDependencies += "dev.zio" % "zio-jdbc_2.13" % "0.0.1" // No version for Scala 3 yet
+
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-json" % zioJsonVersion
 
+// ThisBuild / libraryDependencies += "dev.zio" %% "zio-http" % zioHttpVersion
 ThisBuild / libraryDependencies += "io.d11" %% "zhttp" % zioHttpVersion
 
 ThisBuild / libraryDependencies += "javax.servlet" % "servlet-api" % "3.0-alpha-1" % Provided
 
-ThisBuild / libraryDependencies += "org.apache.tomcat.embed" % "tomcat-embed-core" % "10.1.0"
+ThisBuild / libraryDependencies += "org.apache.tomcat.embed" % "tomcat-embed-core" % "10.1.7"
 
 ThisBuild / libraryDependencies += "org.testcontainers" % "mysql" % testContainersVersion % Test
-ThisBuild / libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.31"
+ThisBuild / libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.32"
 ThisBuild / libraryDependencies += "com.zaxxer" % "HikariCP" % "5.0.1" // requires Java 11+
 
 ThisBuild / libraryDependencies += "org.jooq" % "jooq" % jooqVersion
 ThisBuild / libraryDependencies += "org.jooq" % "jooq-meta" % jooqVersion
 ThisBuild / libraryDependencies += "org.jooq" % "jooq-codegen" % jooqVersion
 // Used by JOOQ
-ThisBuild / libraryDependencies += "org.jetbrains" % "annotations" % "23.0.0"
+ThisBuild / libraryDependencies += "org.jetbrains" % "annotations" % "24.0.1"
 
-ThisBuild / libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.4.4"
+ThisBuild / libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.4.5"
 
 ThisBuild / testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 
