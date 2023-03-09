@@ -25,6 +25,8 @@ import scala.util.Using
 import scala.util.chaining.*
 
 import eu.cdevreeze.tryzio.jdbc.*
+import eu.cdevreeze.tryzio.jdbc.ConnectionWork.*
+import eu.cdevreeze.tryzio.jdbc.JdbcSupport.Argument
 import eu.cdevreeze.tryzio.jooq.generated.wordpress.Tables.*
 import eu.cdevreeze.tryzio.wordpress.model.CommentStatus
 import eu.cdevreeze.tryzio.wordpress.model.Post
@@ -161,13 +163,7 @@ final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo:
     for {
       dsl <- ZIO.attempt(makeDsl())
       sql <- ZIO.attempt(createFullQuery(Seq(basePostCte(dsl)), _.select().from(table("posts")), dsl))
-      rows <- cp.transactional { conn =>
-        Using.resource(conn.prepareStatement(sql.getSQL)) { ps =>
-          Using.resource(ps.executeQuery()) { rs =>
-            Iterator.from(1).takeWhile(_ => rs.next).map(idx => mapPostRow(rs, idx)).toSeq
-          }
-        }
-      }
+      rows <- cp.txReadCommitted(queryForSeq(sql.getSQL, Seq.empty, mapPostRow))
       posts <- ZIO.attempt(PostRow.toPosts(rows))
       filteredPosts <- ZIO.filter(posts)(p)
     } yield filteredPosts
@@ -198,14 +194,7 @@ final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo:
       for {
         dsl <- ZIO.attempt(makeDsl())
         sql <- ZIO.attempt(makeSql(dsl))
-        rows <- cp.transactional { conn =>
-          Using.resource(conn.prepareStatement(sql.getSQL)) { ps =>
-            ps.setLong(1, postId)
-            Using.resource(ps.executeQuery()) { rs =>
-              Iterator.from(1).takeWhile(_ => rs.next).map(idx => mapPostRow(rs, idx)).toSeq
-            }
-          }
-        }
+        rows <- cp.txReadCommitted(queryForSeq(sql.getSQL, Seq(Argument.LongArg(postId)), mapPostRow))
         posts <- ZIO.attempt(PostRow.toPosts(rows))
       } yield posts
 
@@ -236,14 +225,7 @@ final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo:
       for {
         dsl <- ZIO.attempt(makeDsl())
         sql <- ZIO.attempt(makeSql(dsl))
-        rows <- cp.transactional { conn =>
-          Using.resource(conn.prepareStatement(sql.getSQL)) { ps =>
-            ps.setString(1, name)
-            Using.resource(ps.executeQuery()) { rs =>
-              Iterator.from(1).takeWhile(_ => rs.next).map(idx => mapPostRow(rs, idx)).toSeq
-            }
-          }
-        }
+        rows <- cp.txReadCommitted(queryForSeq(sql.getSQL, Seq(Argument.StringArg(name)), mapPostRow))
         posts <- ZIO.attempt(PostRow.toPosts(rows))
       } yield posts
 

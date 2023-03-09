@@ -16,20 +16,18 @@
 
 package eu.cdevreeze.tryzio.jdbc
 
-import java.sql.ResultSet
+import java.sql.Connection
 
 import zio.Task
-import zio.UIO
-import zio.ZIO
 
 /**
- * ResultSet wrapper, inspired by zio-jdbc.
+ * Database (local) transaction, returning a value of type A.
+ *
+ * TODO Readonly transactions TODO Make when to rollback configurable
  *
  * @author
  *   Chris de Vreeze
  */
-final class ZResultSet(val resultSet: ResultSet):
+trait Transaction[A](val isolationLevel: Int) extends ((Connection => A) => Task[A]):
 
-  def access[A](f: ResultSet => A): Task[A] = ZIO.attemptBlocking { f(resultSet) }
-
-  def close(): UIO[Unit] = ZIO.attempt(resultSet.close()).ignoreLogged
+  def apply(f: Connection => A): Task[A]

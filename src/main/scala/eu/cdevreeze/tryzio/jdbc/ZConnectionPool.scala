@@ -38,6 +38,10 @@ abstract class ZConnectionPool:
     f(underlying)
   }
 
-  def transactional[A](f: Connection => A): Task[A]
+  def tx[A](isolationLevel: Int): Transaction[A]
 
-// TODO Read=only transaction
+  final def txReadCommitted[A]: Transaction[A] = tx(Connection.TRANSACTION_READ_COMMITTED)
+
+  final def txRepeatableRead[A]: Transaction[A] = tx(Connection.TRANSACTION_REPEATABLE_READ)
+
+  final def txSerializable[A]: Transaction[A] = tx(Connection.TRANSACTION_SERIALIZABLE)
