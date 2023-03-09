@@ -32,20 +32,25 @@ final class ZConnectionPoolFromDataSource(val dataSource: DataSource) extends ZC
   def transaction: Task[ZConnection] =
     ZIO.scoped {
       ZIO.blocking { // Correct?
-        ZIO.acquireReleaseExit {
-          ZIO.attempt(ZConnection(dataSource.getConnection())).tap { conn =>
-            ZIO.attempt(conn.connection.setAutoCommit(false))
+        ZIO
+          .acquireRelease {
+            ZIO.attempt(ZConnection(dataSource.getConnection()))
+          } { conn =>
+            ZIO.attempt(conn.connection.close()).ignore
           }
-        } {
-          (conn: ZConnection, exit: Exit[Any, Any]) =>
-            val endTx: Task[Unit] = exit match {
-              case Exit.Success(_) => ZIO.attempt(conn.connection.commit())
-              case Exit.Failure(_) => ZIO.attempt(conn.connection.rollback())
+          .flatMap { conn =>
+            ZIO.scoped {
+              ZIO.acquireReleaseExit {
+                ZIO.attempt(conn.connection.setAutoCommit(false)) *> ZIO.succeed(conn)
+              } { (conn: ZConnection, exit: Exit[Any, Any]) =>
+                val endTx: Task[Unit] = exit match {
+                  case Exit.Success(_) => ZIO.attempt(conn.connection.commit())
+                  case Exit.Failure(_) => ZIO.attempt(conn.connection.rollback())
+                }
+                endTx.ignore
+              }
             }
-            endTx.ignore.tap { _ =>
-              ZIO.attempt(conn.connection.close()).ignore
-            }
-        }
+          }
       }
     }
 
