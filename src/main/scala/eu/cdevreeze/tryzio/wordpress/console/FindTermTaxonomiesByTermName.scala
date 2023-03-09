@@ -18,7 +18,8 @@ package eu.cdevreeze.tryzio.wordpress.console
 
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import eu.cdevreeze.tryzio.jdbc.JdbcSupport.*
+import eu.cdevreeze.tryzio.jdbc.*
+import eu.cdevreeze.tryzio.wordpress.repo.TermRepo
 import eu.cdevreeze.tryzio.wordpress.repo.TermRepoImpl
 import javax.sql.DataSource
 import zio.*
@@ -33,13 +34,17 @@ import zio.json.*
  */
 object FindTermTaxonomiesByTermName extends ZIOAppDefault:
 
+  private val dsLayer: TaskLayer[DataSource] = ZLayer.fromZIO(getDataSource())
+
   def run: Task[Unit] =
     for {
       _ <- printLine("Enter a term name:")
       termName <- readLine
       _ <- printLine("Finding term taxonomies for term name $termName:")
-      ds <- getDataSource()
-      results <- using(ds).execute(conn => TermRepoImpl(conn).findTermTaxonomiesByTermName(termName))
+      repo <- ZIO
+        .service[TermRepo]
+        .provideLayer((dsLayer >>> ZConnectionPoolFromDataSource.layer) >>> TermRepoImpl.layer)
+      results <- repo.findTermTaxonomiesByTermName(termName)
       jsonResults <- ZIO.attempt(results.map(_.toJsonPretty))
       _ <- printLine(jsonResults)
     } yield ()
