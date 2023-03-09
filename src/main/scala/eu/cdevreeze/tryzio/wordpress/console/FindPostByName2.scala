@@ -18,7 +18,8 @@ package eu.cdevreeze.tryzio.wordpress.console
 
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import eu.cdevreeze.tryzio.jdbc.JdbcSupport.*
+import eu.cdevreeze.tryzio.jdbc.*
+import eu.cdevreeze.tryzio.wordpress.repo.PostRepo
 import eu.cdevreeze.tryzio.wordpress.repo.PostRepoImpl2
 import javax.sql.DataSource
 import zio.*
@@ -33,13 +34,17 @@ import zio.json.*
  */
 object FindPostByName2 extends ZIOAppDefault:
 
+  private val dsLayer: TaskLayer[DataSource] = ZLayer.fromZIO(getDataSource())
+
   def run: Task[Unit] =
     for {
       _ <- printLine("Enter a post name:")
       postName <- readLine
       _ <- printLine("Finding post (if any) for post name $postName:")
-      ds <- getDataSource()
-      resultOpt <- using(ds).execute(conn => PostRepoImpl2(conn).findPostByName(postName))
+      repo <- ZIO
+        .service[PostRepo]
+        .provideLayer((dsLayer >>> ZConnectionPoolFromDataSource.layer) >>> PostRepoImpl2.layer)
+      resultOpt <- repo.findPostByName(postName)
       jsonResultOpt <- ZIO.attempt(resultOpt.map(_.toJsonPretty))
       _ <- printLine(jsonResultOpt)
     } yield ()

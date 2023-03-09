@@ -25,7 +25,9 @@ import java.time.ZoneId
 import scala.util.Try
 import scala.util.chaining.*
 
-import eu.cdevreeze.tryzio.jdbc.JdbcSupport.*
+import eu.cdevreeze.tryzio.jdbc.*
+import eu.cdevreeze.tryzio.jdbc.ConnectionWork.*
+import eu.cdevreeze.tryzio.jdbc.JdbcSupport.Argument
 import eu.cdevreeze.tryzio.jooq.generated.wordpress.Tables.*
 import eu.cdevreeze.tryzio.wordpress.model.CommentStatus
 import eu.cdevreeze.tryzio.wordpress.model.Post
@@ -67,7 +69,7 @@ import zio.json.*
  * @author
  *   Chris de Vreeze
  */
-final class PostRepoImpl2(val conn: Connection) extends PostRepo:
+final class PostRepoImpl2(val cp: ZConnectionPool) extends PostRepo:
 
   private def makeDsl(): DSLContext = DSL.using(SQLDialect.MYSQL)
 
@@ -187,7 +189,7 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
     for {
       dsl <- ZIO.attempt(makeDsl())
       sql <- ZIO.attempt(makeSql(dsl))
-      rows <- using(conn).query(sql.getSQL, Seq.empty)(mapPostRow)
+      rows <- cp.txReadCommitted(queryForSeq(sql.getSQL, Seq.empty, mapPostRow))
       posts <- ZIO.attempt(PostRow.toPosts(rows))
       filteredPosts <- ZIO.filter(posts)(p)
     } yield filteredPosts
@@ -218,7 +220,7 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
       for {
         dsl <- ZIO.attempt(makeDsl())
         sql <- ZIO.attempt(makeSql(dsl))
-        rows <- using(conn).query(sql.getSQL, Seq(Argument.LongArg(postId)))(mapPostRow)
+        rows <- cp.txReadCommitted(queryForSeq(sql.getSQL, Seq(Argument.LongArg(postId)), mapPostRow))
         posts <- ZIO.attempt(PostRow.toPosts(rows))
       } yield posts
 
@@ -249,7 +251,7 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
       for {
         dsl <- ZIO.attempt(makeDsl())
         sql <- ZIO.attempt(makeSql(dsl))
-        rows <- using(conn).query(sql.getSQL, Seq(Argument.StringArg(name)))(mapPostRow)
+        rows <- cp.txReadCommitted(queryForSeq(sql.getSQL, Seq(Argument.StringArg(name)), mapPostRow))
         posts <- ZIO.attempt(PostRow.toPosts(rows))
       } yield posts
 
@@ -257,6 +259,9 @@ final class PostRepoImpl2(val conn: Connection) extends PostRepo:
   end findPostByName
 
 object PostRepoImpl2:
+
+  val layer: ZLayer[ZConnectionPool, Throwable, PostRepo] =
+    ZLayer.fromFunction(cp => PostRepoImpl2(cp))
 
   // PostRow knows its parent, if any, whereas Post contains a children property
   private case class PostRow(

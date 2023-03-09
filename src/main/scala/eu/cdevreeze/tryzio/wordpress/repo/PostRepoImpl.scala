@@ -312,6 +312,9 @@ object PostRepoImpl:
       rows.map(toPost)
     end toPosts
 
+    given decoder: JsonDecoder[PostRow] = DeriveJsonDecoder.gen[PostRow]
+    given encoder: JsonEncoder[PostRow] = DeriveJsonEncoder.gen[PostRow]
+
   end PostRow
 
 end PostRepoImpl
