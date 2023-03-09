@@ -43,8 +43,8 @@ import zio.*
  *
  * Note the contrast between FP when using ZIO on the one hand and the opposite of FP when using the servlet API on the other hand. The idea
  * here is to show that integration is possible between those 2 worlds (even if sub-optimal), and that we keep control over blocking and
- * (partly) single-threaded request handling, if need be. Note that some legacy Java APIs may require blocking on one thread, due to the use of
- * thread locals under the hood.
+ * (partly) single-threaded request handling, if need be. Note that some legacy Java APIs may require blocking on one thread, due to the use
+ * of thread locals under the hood.
  *
  * Below, for each HTTP request there are multiple threads involved: the initial request handling thread (from the container), the "async"
  * thread (also from the container), and threads running the ZIO effects (and response writing). Also note that multiple "programming

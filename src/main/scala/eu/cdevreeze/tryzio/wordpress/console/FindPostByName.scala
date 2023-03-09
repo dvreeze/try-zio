@@ -41,7 +41,8 @@ object FindPostByName extends ZIOAppDefault:
       _ <- printLine("Enter a post name:")
       postName <- readLine
       _ <- printLine("Finding post (if any) for post name $postName:")
-      repo <- ZIO.service[PostRepo]
+      repo <- ZIO
+        .service[PostRepo]
         .provideLayer((dsLayer >>> ZConnectionPoolFromDataSource.layer) >>> PostRepoImpl.layer)
       resultOpt <- repo.findPostByName(postName)
       jsonResultOpt <- ZIO.attempt(resultOpt.map(_.toJsonPretty))

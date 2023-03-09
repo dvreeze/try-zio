@@ -16,6 +16,8 @@
 
 package eu.cdevreeze.tryzio.jdbc
 
+import java.sql.Connection
+
 import zio.*
 
 /**
@@ -26,8 +28,16 @@ import zio.*
  */
 abstract class ZConnectionPool:
 
+  type Underlying
+
+  def underlying: Underlying
+
   def invalidate(conn: ZConnection): UIO[Any]
 
-  def transaction: Task[ZConnection]
+  def access[A](f: Underlying => A): Task[A] = ZIO.attemptBlocking {
+    f(underlying)
+  }
 
-  // TODO Read=only transaction
+  def transactional[A](f: Connection => A): Task[A]
+
+// TODO Read=only transaction

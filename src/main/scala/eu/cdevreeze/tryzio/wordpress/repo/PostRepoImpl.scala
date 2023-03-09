@@ -161,8 +161,8 @@ final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo:
     for {
       dsl <- ZIO.attempt(makeDsl())
       sql <- ZIO.attempt(createFullQuery(Seq(basePostCte(dsl)), _.select().from(table("posts")), dsl))
-      rows <- cp.transaction.mapAttempt { conn =>
-        Using.resource(conn.connection.prepareStatement(sql.getSQL)) { ps =>
+      rows <- cp.transactional { conn =>
+        Using.resource(conn.tap(c => println("DOING WORK: " + c)).prepareStatement(sql.getSQL)) { ps =>
           Using.resource(ps.executeQuery()) { rs =>
             Iterator.from(1).takeWhile(_ => rs.next).map(idx => mapPostRow(rs, idx)).toSeq
           }
@@ -198,8 +198,8 @@ final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo:
       for {
         dsl <- ZIO.attempt(makeDsl())
         sql <- ZIO.attempt(makeSql(dsl))
-        rows <- cp.transaction.mapAttempt { conn =>
-          Using.resource(conn.connection.prepareStatement(sql.getSQL)) { ps =>
+        rows <- cp.transactional { conn =>
+          Using.resource(conn.prepareStatement(sql.getSQL)) { ps =>
             ps.setLong(1, postId)
             Using.resource(ps.executeQuery()) { rs =>
               Iterator.from(1).takeWhile(_ => rs.next).map(idx => mapPostRow(rs, idx)).toSeq
@@ -236,8 +236,8 @@ final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo:
       for {
         dsl <- ZIO.attempt(makeDsl())
         sql <- ZIO.attempt(makeSql(dsl))
-        rows <- cp.transaction.mapAttempt { conn =>
-          Using.resource(conn.connection.prepareStatement(sql.getSQL)) { ps =>
+        rows <- cp.transactional { conn =>
+          Using.resource(conn.prepareStatement(sql.getSQL)) { ps =>
             ps.setString(1, name)
             Using.resource(ps.executeQuery()) { rs =>
               Iterator.from(1).takeWhile(_ => rs.next).map(idx => mapPostRow(rs, idx)).toSeq

@@ -38,7 +38,8 @@ object FindPosts extends ZIOAppDefault:
 
   def run: Task[Unit] =
     for {
-      repo <- ZIO.service[PostRepo]
+      repo <- ZIO
+        .service[PostRepo]
         .provideLayer((dsLayer >>> ZConnectionPoolFromDataSource.layer) >>> PostRepoImpl.layer)
       results <- repo.filterPosts(_ => ZIO.succeed(true))
       jsonResults <- ZIO.attempt(results.map(_.toJsonPretty))
