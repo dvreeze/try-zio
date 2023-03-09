@@ -42,8 +42,8 @@ final class ZConnectionPoolFromDataSource(val dataSource: DataSource) extends ZC
               case Exit.Success(_) => ZIO.attempt(conn.connection.commit())
               case Exit.Failure(_) => ZIO.attempt(conn.connection.rollback())
             }
-            endTx.orElseSucceed(ZIO.unit).tap { _ =>
-              ZIO.attempt(conn.connection.close()).orElseSucceed(ZIO.unit)
+            endTx.ignore.tap { _ =>
+              ZIO.attempt(conn.connection.close()).ignore
             }
         }
       }
