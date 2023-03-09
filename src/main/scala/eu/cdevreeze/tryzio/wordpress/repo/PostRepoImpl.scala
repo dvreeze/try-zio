@@ -162,7 +162,7 @@ final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo:
       dsl <- ZIO.attempt(makeDsl())
       sql <- ZIO.attempt(createFullQuery(Seq(basePostCte(dsl)), _.select().from(table("posts")), dsl))
       rows <- cp.transactional { conn =>
-        Using.resource(conn.tap(c => println("DOING WORK: " + c)).prepareStatement(sql.getSQL)) { ps =>
+        Using.resource(conn.prepareStatement(sql.getSQL)) { ps =>
           Using.resource(ps.executeQuery()) { rs =>
             Iterator.from(1).takeWhile(_ => rs.next).map(idx => mapPostRow(rs, idx)).toSeq
           }
