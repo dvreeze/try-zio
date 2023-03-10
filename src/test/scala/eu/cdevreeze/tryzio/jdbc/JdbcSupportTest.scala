@@ -23,6 +23,7 @@ import scala.util.chaining.*
 
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import eu.cdevreeze.tryzio.jdbc.ConnectionWork.*
 import eu.cdevreeze.tryzio.jdbc.JdbcSupport.Argument.*
 import eu.cdevreeze.tryzio.jooq.generated.mysql.Tables.*
 import javax.sql.DataSource
@@ -33,9 +34,8 @@ import org.jooq.impl.DSL.field
 import org.jooq.impl.DSL.primaryKey
 import org.jooq.impl.DSL.table
 import org.jooq.impl.SQLDataType.*
+import zio.*
 import zio.Console.printLine
-import zio.Task
-import zio.ZIO
 import zio.test.Assertion.*
 import zio.test.ZIOSpecDefault
 import zio.test.assert
@@ -57,6 +57,13 @@ object JdbcSupportTest extends ZIOSpecDefault:
 
   import JdbcSupport.*
 
+  private val dsLayer: TaskLayer[DataSource] = ZLayer.fromZIO(getDataSource())
+
+  private val getCp: Task[ZConnectionPool] =
+    ZIO
+      .service[ZConnectionPool]
+      .provideLayer(dsLayer >>> ZConnectionPoolFromDataSource.layer)
+
   private def makeDsl(): DSLContext = DSL.using(SQLDialect.MYSQL)
 
   private final case class User(host: String, user: String)
@@ -69,8 +76,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
     List(
       test("Querying for users succeeds") {
         for {
-          result <- getDataSource()
-            .flatMap(ds => getUsers(ds))
+          result <- getUsers()
             .tap(res => printLine(s"Users: $res"))
         } yield assert(result.map(_.host).distinct)(equalTo(Seq("%", "localhost")))
       },
@@ -90,15 +96,13 @@ object JdbcSupportTest extends ZIOSpecDefault:
       },
       test("Querying multiple times simultaneously for users succeeds") {
         for {
-          multipleResults <- getDataSource()
-            .flatMap(ds => getUsers(ds))
+          multipleResults <- getUsers()
             .pipe(getDs => ZIO.foreachPar(0.until(5))(_ => getDs))
         } yield assert(multipleResults.flatten.map(_.host).distinct)(equalTo(Seq("%", "localhost")))
       },
       test("Querying for timezones succeeds") {
         for {
-          result <- getDataSource()
-            .flatMap(ds => getSomeTimezones("Europe/%", ds))
+          result <- getSomeTimezones("Europe/%")
             .tap(res => printLine(s"Timezones: $res"))
         } yield {
           assert(result.map(_.name))(contains("Europe/Lisbon")) &&
@@ -109,8 +113,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
       },
       test("Querying multiple times simultaneously for timezones succeeds") {
         for {
-          multipleResults <- getDataSource()
-            .flatMap(ds => getSomeTimezones("Europe/%", ds))
+          multipleResults <- getSomeTimezones("Europe/%")
             .pipe(getDs => ZIO.foreachPar(0.until(5))(_ => getDs))
         } yield {
           assert(multipleResults.flatten.map(_.name))(contains("Europe/Lisbon")) &&
@@ -134,12 +137,12 @@ object JdbcSupportTest extends ZIOSpecDefault:
     )
   }
 
-  private def getUsers(ds: DataSource): Task[Seq[User]] =
+  private def getUsers(): Task[Seq[User]] =
     for {
       dsl <- ZIO.attempt(makeDsl())
       sqlQuery <- ZIO.attempt(dsl.select(USER.HOST, USER.USER_).from(USER))
-      result <- using(ds)
-        .query(sqlQuery.getSQL, Seq.empty) { (rs, _) => User(rs.getString(1), rs.getString(2)) }
+      cp <- getCp
+      result <- cp.txReadCommitted(queryForSeq(sqlQuery.getSQL, Seq.empty, { (rs, _) => User(rs.getString(1), rs.getString(2)) }))
     } yield result
   end getUsers
 
@@ -169,7 +172,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
     }
   end getUsersTheVerboseWay
 
-  private def getSomeTimezones(timezoneLikeString: String, ds: DataSource): Task[Seq[Timezone]] =
+  private def getSomeTimezones(timezoneLikeString: String): Task[Seq[Timezone]] =
     val sqlQueryTask: Task[Query] = ZIO.attempt {
       val dsl = makeDsl()
       dsl
@@ -182,10 +185,16 @@ object JdbcSupportTest extends ZIOSpecDefault:
 
     for {
       sqlQuery <- sqlQueryTask
-      result <- using(ds)
-        .query(sqlQuery.getSQL, Seq(StringArg(timezoneLikeString))) { (rs, _) =>
-          Timezone(rs.getInt(1), rs.getString(2), rs.getString(3).pipe(_ == "Y"))
-        }
+      cp <- getCp
+      result <- cp.txReadCommitted(
+        queryForSeq(
+          sqlQuery.getSQL,
+          Seq(StringArg(timezoneLikeString)),
+          { (rs, _) =>
+            Timezone(rs.getInt(1), rs.getString(2), rs.getString(3).pipe(_ == "Y"))
+          }
+        )
+      )
     } yield result
   end getSomeTimezones
 
