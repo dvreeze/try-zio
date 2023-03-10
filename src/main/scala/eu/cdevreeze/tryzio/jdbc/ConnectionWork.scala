@@ -41,6 +41,8 @@ object ConnectionWork:
   def queryForSingleResult[E](sql: String, args: Seq[Argument], rowMapper: (ResultSet, Int) => E): QueryForSingleResult[E] =
     QueryForSingleResult[E](sql, args, rowMapper)
 
+  def query[A](sql: String, args: Seq[Argument], resultSetMapper: ResultSet => A): Query[A] = Query[A](sql, args, resultSetMapper)
+
 final class QueryForSeq[E](sql: String, args: Seq[Argument], rowMapper: (ResultSet, Int) => E) extends ConnectionWork[Seq[E]]:
 
   def apply(conn: Connection): Seq[E] =
@@ -55,3 +57,11 @@ final class QueryForSingleResult[E](sql: String, args: Seq[Argument], rowMapper:
 
   def apply(conn: Connection): Option[E] =
     QueryForSeq[E](sql, args, rowMapper).apply(conn).headOption
+
+final class Query[A](sql: String, args: Seq[Argument], resultSetMapper: ResultSet => A) extends ConnectionWork[A]:
+
+  def apply(conn: Connection): A =
+    Using.resource(conn.prepareStatement(sql)) { ps =>
+      args.zipWithIndex.foreach { (arg, index) => arg.applyTo(ps, index + 1) }
+      Using.resource(ps.executeQuery())(resultSetMapper)
+    }

@@ -45,6 +45,8 @@ object JdbcSupport:
   // TODO Follow ZIO 2.0 best practices, like using by-name parameters when ZIO effects are returned
   // TODO Enhance and improve the API, for example by taking more control over blocking
 
+  // TODO Most of this object will go away soon, keeping only a few enums etc.
+
   type ScopedTask[A] = RIO[Scope, A]
 
   final class Transaction(val connection: Connection, val rollbackOnly: AtomicBoolean):
