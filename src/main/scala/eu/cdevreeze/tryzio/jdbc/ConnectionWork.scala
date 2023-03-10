@@ -46,12 +46,11 @@ object ConnectionWork:
 final class QueryForSeq[E](sql: String, args: Seq[Argument], rowMapper: (ResultSet, Int) => E) extends ConnectionWork[Seq[E]]:
 
   def apply(conn: Connection): Seq[E] =
-    Using.resource(conn.prepareStatement(sql)) { ps =>
-      args.zipWithIndex.foreach { (arg, index) => arg.applyTo(ps, index + 1) }
-      Using.resource(ps.executeQuery()) { rs =>
-        Iterator.from(1).takeWhile(_ => rs.next).map(idx => rowMapper(rs, idx)).toSeq
-      }
-    }
+    Query(
+      sql,
+      args,
+      { rs => Iterator.from(1).takeWhile(_ => rs.next).map(idx => rowMapper(rs, idx)).toSeq }
+    ).apply(conn)
 
 final class QueryForSingleResult[E](sql: String, args: Seq[Argument], rowMapper: (ResultSet, Int) => E) extends ConnectionWork[Option[E]]:
 
