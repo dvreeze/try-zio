@@ -26,6 +26,10 @@ import eu.cdevreeze.tryzio.jdbc.JdbcSupport.Argument
 /**
  * Side-effecting work taking a Connection.
  *
+ * Note that JDBC code typically must run in a blocking way, using one single thread for each (transactional) use of a Connection. Hence the
+ * blocking effects around database work. In the case of the well-known Connector/J MySQL JDBC driver, see for example the discussion at
+ * https://bugs.mysql.com/bug.php?id=67760.
+ *
  * @author
  *   Chris de Vreeze
  */
@@ -42,6 +46,8 @@ object ConnectionWork:
     QueryForSingleResult[E](sql, args, rowMapper)
 
   def query[A](sql: String, args: Seq[Argument], resultSetMapper: ResultSet => A): Query[A] = Query[A](sql, args, resultSetMapper)
+
+  def update(sql: String, args: Seq[Argument]): Update = Update(sql, args)
 
 final class QueryForSeq[E](sql: String, args: Seq[Argument], rowMapper: (ResultSet, Int) => E) extends ConnectionWork[Seq[E]]:
 
@@ -63,4 +69,12 @@ final class Query[A](sql: String, args: Seq[Argument], resultSetMapper: ResultSe
     Using.resource(conn.prepareStatement(sql)) { ps =>
       args.zipWithIndex.foreach { (arg, index) => arg.applyTo(ps, index + 1) }
       Using.resource(ps.executeQuery())(resultSetMapper)
+    }
+
+final class Update(sql: String, args: Seq[Argument]) extends ConnectionWork[Int]:
+
+  def apply(conn: Connection): Int =
+    Using.resource(conn.prepareStatement(sql)) { ps =>
+      args.zipWithIndex.foreach { (arg, index) => arg.applyTo(ps, index + 1) }
+      ps.executeUpdate()
     }

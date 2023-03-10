@@ -24,9 +24,9 @@ import zio.UIO
 import zio.ZIO
 import zio.stream.ZStream
 import zio.test.Assertion.*
-import zio.test.ZIOSpecDefault
 import zio.test.Gen
 import zio.test.Sample
+import zio.test.ZIOSpecDefault
 import zio.test.assert
 import zio.test.check
 import zio.test.magnolia.*
