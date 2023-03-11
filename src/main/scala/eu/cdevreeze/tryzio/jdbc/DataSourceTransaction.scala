@@ -31,9 +31,10 @@ import zio.*
  */
 final class DataSourceTransaction[A](val dataSource: DataSource, isolationLevel: Int) extends Transaction[A](isolationLevel):
 
-  def apply(f: Connection => A): Task[A] =
-    ZIO.scoped {
-      ZIO.blocking { // Correct?
+  def apply(f: => RIO[ZConnection, A]): Task[A] =
+    // See https://www.baeldung.com/java-sql-connection-thread-safety why it is needed to use the blocking thread pool
+    ZIO.blocking {
+      ZIO.scoped {
         ZIO.acquireReleaseExitWith {
           ZIO
             .attempt(ZConnection(dataSource.getConnection()))
@@ -51,8 +52,8 @@ final class DataSourceTransaction[A](val dataSource: DataSource, isolationLevel:
           endTx.ignore.tap { _ =>
             ZIO.attempt(conn.connection.close()).ignore
           }
-        } {
-          _.access(f)
+        } { conn =>
+          f.provideEnvironment(ZEnvironment(conn))
         }
       }
     }

@@ -170,10 +170,14 @@ object JdbcSupportTest extends ZIOSpecDefault:
     for {
       dsl <- ZIO.attempt(makeDsl())
       sqlQuery <- ZIO.attempt(dsl.select(USER.HOST, USER.USER_).from(USER))
-      result <- cp.txReadCommitted { conn =>
-        Using.resource(conn.prepareStatement(sqlQuery.getSQL)) { ps =>
-          Using.resource(ps.executeQuery()) { rs =>
-            Iterator.from(1).takeWhile(_ => rs.next).map(_ => User(rs.getString(1), rs.getString(2))).toSeq
+      result <- cp.txReadCommitted {
+        ZIO.service[ZConnection].flatMap { conn =>
+          ZIO.attempt {
+            Using.resource(conn.connection.prepareStatement(sqlQuery.getSQL)) { ps =>
+              Using.resource(ps.executeQuery()) { rs =>
+                Iterator.from(1).takeWhile(_ => rs.next).map(_ => User(rs.getString(1), rs.getString(2))).toSeq
+              }
+            }
           }
         }
       }
@@ -238,10 +242,9 @@ object JdbcSupportTest extends ZIOSpecDefault:
       dsl <- ZIO.attempt(makeDsl())
       sql1 <- sql1Task(dsl)
       sql2 <- sql2Task(dsl)
-      _ <- cp.txReadCommitted { conn =>
-        // Imperative code
-        update(sql1.getSQL, Seq.empty)(conn)
-        update(sql2.getSQL, Seq.empty)(conn)
+      _ <- cp.txReadCommitted {
+        update(sql1.getSQL, Seq.empty)
+          .flatMap(_ => update(sql2.getSQL, Seq.empty))
       }
     } yield ()
   end copyUsers

@@ -22,6 +22,8 @@ import java.sql.ResultSet
 import scala.util.Using
 
 import eu.cdevreeze.tryzio.jdbc.JdbcSupport.Argument
+import zio.RIO
+import zio.ZIO
 
 /**
  * Side-effecting work taking a Connection.
@@ -33,48 +35,54 @@ import eu.cdevreeze.tryzio.jdbc.JdbcSupport.Argument
  * @author
  *   Chris de Vreeze
  */
-trait ConnectionWork[A] extends (Connection => A):
-
-  def apply(conn: Connection): A
+type ConnectionWork[A] = RIO[ZConnection, A]
 
 object ConnectionWork:
 
-  def queryForSeq[E](sql: String, args: Seq[Argument], rowMapper: (ResultSet, Int) => E): QueryForSeq[E] =
-    QueryForSeq[E](sql, args, rowMapper)
-
-  def queryForSingleResult[E](sql: String, args: Seq[Argument], rowMapper: (ResultSet, Int) => E): QueryForSingleResult[E] =
-    QueryForSingleResult[E](sql, args, rowMapper)
-
-  def query[A](sql: String, args: Seq[Argument], resultSetMapper: ResultSet => A): Query[A] = Query[A](sql, args, resultSetMapper)
-
-  def update(sql: String, args: Seq[Argument]): Update = Update(sql, args)
-
-final class QueryForSeq[E](sql: String, args: Seq[Argument], rowMapper: (ResultSet, Int) => E) extends ConnectionWork[Seq[E]]:
-
-  def apply(conn: Connection): Seq[E] =
-    Query(
+  def queryForSeq[E](sql: String, args: Seq[Argument], rowMapper: (ResultSet, Int) => E): ConnectionWork[Seq[E]] =
+    query(
       sql,
       args,
       { rs => Iterator.from(1).takeWhile(_ => rs.next).map(idx => rowMapper(rs, idx)).toSeq }
-    ).apply(conn)
+    )
 
-final class QueryForSingleResult[E](sql: String, args: Seq[Argument], rowMapper: (ResultSet, Int) => E) extends ConnectionWork[Option[E]]:
+  def queryForSingleResult[E](sql: String, args: Seq[Argument], rowMapper: (ResultSet, Int) => E): ConnectionWork[Option[E]] =
+    queryForSeq[E](sql, args, rowMapper).map(_.headOption)
 
-  def apply(conn: Connection): Option[E] =
-    QueryForSeq[E](sql, args, rowMapper).apply(conn).headOption
-
-final class Query[A](sql: String, args: Seq[Argument], resultSetMapper: ResultSet => A) extends ConnectionWork[A]:
-
-  def apply(conn: Connection): A =
-    Using.resource(conn.prepareStatement(sql)) { ps =>
-      args.zipWithIndex.foreach { (arg, index) => arg.applyTo(ps, index + 1) }
-      Using.resource(ps.executeQuery())(resultSetMapper)
+  def query[A](sql: String, args: Seq[Argument], resultSetMapper: ResultSet => A): ConnectionWork[A] =
+    ZIO.blocking {
+      ZIO.scoped {
+        ZIO.acquireReleaseWith {
+          ZIO.service[ZConnection].flatMap(conn => ZIO.attempt(conn.connection.prepareStatement(sql)))
+        } { ps =>
+          ZIO.attempt(ps.close()).ignore
+        } { ps =>
+          for {
+            _ <- ZIO.foreachDiscard(args.zipWithIndex) { (arg, index) => ZIO.attempt(arg.applyTo(ps, index + 1)) }
+            result <- ZIO.acquireReleaseWith {
+              ZIO.attempt(ps.executeQuery())
+            } { rs =>
+              ZIO.attempt(rs.close()).ignore
+            } { rs =>
+              ZIO.attempt(resultSetMapper(rs))
+            }
+          } yield result
+        }
+      }
     }
 
-final class Update(sql: String, args: Seq[Argument]) extends ConnectionWork[Int]:
-
-  def apply(conn: Connection): Int =
-    Using.resource(conn.prepareStatement(sql)) { ps =>
-      args.zipWithIndex.foreach { (arg, index) => arg.applyTo(ps, index + 1) }
-      ps.executeUpdate()
+  def update(sql: String, args: Seq[Argument]): ConnectionWork[Int] =
+    ZIO.blocking {
+      ZIO.scoped {
+        ZIO.acquireReleaseWith {
+          ZIO.service[ZConnection].flatMap(conn => ZIO.attempt(conn.connection.prepareStatement(sql)))
+        } { ps =>
+          ZIO.attempt(ps.close()).ignore
+        } { ps =>
+          for {
+            _ <- ZIO.foreachDiscard(args.zipWithIndex) { (arg, index) => ZIO.attempt(arg.applyTo(ps, index + 1)) }
+            cnt <- ZIO.attempt(ps.executeUpdate())
+          } yield cnt
+        }
+      }
     }

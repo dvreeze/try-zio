@@ -18,7 +18,7 @@ package eu.cdevreeze.tryzio.jdbc
 
 import java.sql.Connection
 
-import zio.Task
+import zio.*
 
 /**
  * Database (local) transaction, returning a value of type A.
@@ -28,6 +28,6 @@ import zio.Task
  * @author
  *   Chris de Vreeze
  */
-trait Transaction[A](val isolationLevel: Int) extends ((Connection => A) => Task[A]):
+trait Transaction[A](val isolationLevel: Int):
 
-  def apply(f: Connection => A): Task[A]
+  def apply(f: => RIO[ZConnection, A]): Task[A]
