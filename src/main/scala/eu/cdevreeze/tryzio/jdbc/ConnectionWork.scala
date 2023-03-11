@@ -51,38 +51,34 @@ object ConnectionWork:
 
   def query[A](sql: String, args: Seq[Argument], resultSetMapper: ResultSet => A): ConnectionWork[A] =
     ZIO.blocking {
-      ZIO.scoped {
-        ZIO.acquireReleaseWith {
-          ZIO.service[ZConnection].flatMap(conn => ZIO.attempt(conn.connection.prepareStatement(sql)))
-        } { ps =>
-          ZIO.attempt(ps.close()).ignore
-        } { ps =>
-          for {
-            _ <- ZIO.foreachDiscard(args.zipWithIndex) { (arg, index) => ZIO.attempt(arg.applyTo(ps, index + 1)) }
-            result <- ZIO.acquireReleaseWith {
-              ZIO.attempt(ps.executeQuery())
-            } { rs =>
-              ZIO.attempt(rs.close()).ignore
-            } { rs =>
-              ZIO.attempt(resultSetMapper(rs))
-            }
-          } yield result
-        }
+      ZIO.acquireReleaseWith {
+        ZIO.service[ZConnection].flatMap(conn => ZIO.attempt(conn.connection.prepareStatement(sql)))
+      } { ps =>
+        ZIO.attempt(ps.close()).ignore
+      } { ps =>
+        for {
+          _ <- ZIO.foreachDiscard(args.zipWithIndex) { (arg, index) => ZIO.attempt(arg.applyTo(ps, index + 1)) }
+          result <- ZIO.acquireReleaseWith {
+            ZIO.attempt(ps.executeQuery())
+          } { rs =>
+            ZIO.attempt(rs.close()).ignore
+          } { rs =>
+            ZIO.attempt(resultSetMapper(rs))
+          }
+        } yield result
       }
     }
 
   def update(sql: String, args: Seq[Argument]): ConnectionWork[Int] =
     ZIO.blocking {
-      ZIO.scoped {
-        ZIO.acquireReleaseWith {
-          ZIO.service[ZConnection].flatMap(conn => ZIO.attempt(conn.connection.prepareStatement(sql)))
-        } { ps =>
-          ZIO.attempt(ps.close()).ignore
-        } { ps =>
-          for {
-            _ <- ZIO.foreachDiscard(args.zipWithIndex) { (arg, index) => ZIO.attempt(arg.applyTo(ps, index + 1)) }
-            cnt <- ZIO.attempt(ps.executeUpdate())
-          } yield cnt
-        }
+      ZIO.acquireReleaseWith {
+        ZIO.service[ZConnection].flatMap(conn => ZIO.attempt(conn.connection.prepareStatement(sql)))
+      } { ps =>
+        ZIO.attempt(ps.close()).ignore
+      } { ps =>
+        for {
+          _ <- ZIO.foreachDiscard(args.zipWithIndex) { (arg, index) => ZIO.attempt(arg.applyTo(ps, index + 1)) }
+          cnt <- ZIO.attempt(ps.executeUpdate())
+        } yield cnt
       }
     }
