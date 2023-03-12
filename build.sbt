@@ -29,7 +29,7 @@ ThisBuild / publishTo := {
 ThisBuild / pomExtra := pomData
 ThisBuild / pomIncludeRepository := { _ => false }
 
-val zioVersion = "2.0.9"
+val zioVersion = "2.0.10"
 val zioJsonVersion = "0.4.2"
 // val zioHttpVersion = "1.0.0.0-RC27"
 val zioHttpVersion = "2.0.0-RC10" // 2.0.0-RC11 misses Response.bodyAsString etc.?

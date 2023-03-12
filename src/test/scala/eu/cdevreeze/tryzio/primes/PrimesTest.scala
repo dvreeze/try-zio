@@ -85,14 +85,14 @@ object PrimesTest extends ZIOSpecDefault:
 
   private val genPrime: Gen[Any, BigInt] =
     val primeStream: ZStream[Any, Nothing, BigInt] = ZStream.fromIterableZIO(Primes.findPrimes(maxValue).orDie)
-    Gen(primeStream.map(n => Some(Sample.noShrink(n))))
+    Gen(primeStream.map(n => Sample.noShrink(n)))
 
   private val genNonPrime: Gen[Any, BigInt] =
     val numbers = BigInt(2).to(maxValue)
     val getNonPrimes: UIO[Seq[BigInt]] =
       Primes.findPrimes(maxValue).map(_.toSet).map(primes => numbers.filterNot(primes)).orDie
     val nonPrimeStream: ZStream[Any, Nothing, BigInt] = ZStream.fromIterableZIO(getNonPrimes)
-    Gen(nonPrimeStream.map(n => Some(Sample.noShrink(n))))
+    Gen(nonPrimeStream.map(n => Sample.noShrink(n)))
 
   private def multiply(numbers: List[BigInt]): Task[BigInt] =
     if numbers.isEmpty then ZIO.fail(sys.error("Expected at least one number to multiply"))
