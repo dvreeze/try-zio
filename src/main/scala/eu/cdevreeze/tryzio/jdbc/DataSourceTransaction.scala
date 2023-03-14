@@ -34,24 +34,31 @@ final class DataSourceTransaction[A](val dataSource: DataSource, isolationLevel:
   def apply(f: => RIO[ZConnection, A]): Task[A] =
     // See https://www.baeldung.com/java-sql-connection-thread-safety why it is needed to use the blocking thread pool
     ZIO.blocking {
-      ZIO.acquireReleaseExitWith {
-        ZIO
-          .attempt(ZConnection(dataSource.getConnection()))
-          .tap { conn =>
-            ZIO.attempt(conn.connection.setTransactionIsolation(isolationLevel))
-          }
-          .tap { conn =>
-            ZIO.attempt(conn.connection.setAutoCommit(false))
-          }
-      } { (conn: ZConnection, exit: Exit[Any, Any]) =>
-        val endTx: Task[Unit] = exit match {
-          case Exit.Success(_) => ZIO.attempt(conn.connection.commit())
-          case Exit.Failure(_) => ZIO.attempt(conn.connection.rollback())
-        }
-        endTx.ignore.tap { _ =>
-          ZIO.attempt(conn.connection.close()).ignore
-        }
+      ZIO.acquireReleaseWith {
+        ZIO.attempt(ZConnection(dataSource.getConnection()))
+      } { (conn: ZConnection) =>
+        ZIO.attempt(conn.connection.close()).ignore
       } { conn =>
-        f.provideEnvironment(ZEnvironment(conn))
+        runTransactionally(conn, f)
       }
+    }
+
+  private def runTransactionally(conn: => ZConnection, f: => RIO[ZConnection, A]): Task[A] =
+    ZIO.acquireReleaseExitWith {
+      ZIO
+        .succeed(conn)
+        .tap { conn =>
+          ZIO.attempt(conn.connection.setTransactionIsolation(isolationLevel))
+        }
+        .tap { conn =>
+          ZIO.attempt(conn.connection.setAutoCommit(false))
+        }
+    } { (conn: ZConnection, exit: Exit[Any, Any]) =>
+      val endTx: Task[Unit] = exit match {
+        case Exit.Success(_) => ZIO.attempt(conn.connection.commit())
+        case Exit.Failure(_) => ZIO.attempt(conn.connection.rollback())
+      }
+      endTx.ignore
+    } { conn =>
+      f.provideEnvironment(ZEnvironment(conn))
     }
