@@ -55,7 +55,7 @@ object PrimesServer extends ZIOAppDefault:
             case Some(num) =>
               val getPrimes: Task[Seq[BigInt]] = Primes.findPrimes(num)
               getPrimes
-                .map(primes => Response.text(s"Primes <= $num: ${primes.mkString(", ")}"))
+                .mapAttempt(primes => Response.text(s"Primes <= $num: ${primes.mkString(", ")}"))
                 .catchAll(_ => ZIO.succeed(Response.fromHttpError(HttpError.InternalServerError(s"No primes found for $number"))))
         }
         .tap(_ => ZIO.attempt(req.url.path.toString).flatMap(path => showThread(path)))
@@ -71,35 +71,34 @@ object PrimesServer extends ZIOAppDefault:
             case Some(num) =>
               val getPrimeFactors: Task[Primes.PrimeFactors] = Primes.findPrimeFactors(num)
               getPrimeFactors
-                .map(factors => Response.text(s"Prime factors of $num: ${factors.getFactors.mkString(", ")}"))
+                .mapAttempt(factors => Response.text(s"Prime factors of $num: ${factors.getFactors.mkString(", ")}"))
                 .catchAll(_ => ZIO.succeed(Response.fromHttpError(HttpError.InternalServerError(s"No prime factors found for $number"))))
         }
         .tap(_ => ZIO.attempt(req.url.path.toString).flatMap(path => showThread(path)))
         .orDie
   }
 
-  def run: URIO[ZIOAppArgs, ExitCode] =
-    val argsGetter: URIO[ZIOAppArgs, Chunk[String]] = getArgs
-    val portGetter: URIO[ZIOAppArgs, Int] = argsGetter
-      .flatMap { args =>
-        ZIO.attempt(args.headOption.getOrElse(defaultPort.toString).toInt)
-      }
-      .catchAll(_ => ZIO.succeed(defaultPort))
+  def run: UIO[ExitCode] =
+    val portGetter: UIO[Int] = ZIO.config(Config.int("port")).orElseSucceed(defaultPort)
 
     def printServerStarted(port: Int): ZIO[Any, IOException, Unit] = printLine(s"Server started on port $port")
 
-    val threadCount: Int = Try(java.lang.Runtime.getRuntime.availableProcessors()).getOrElse(2)
+    val getThreadCount: UIO[Int] =
+      ZIO.attempt(java.lang.Runtime.getRuntime.availableProcessors()).orElseSucceed(2)
 
-    portGetter.flatMap { port =>
-      Server(httpApp)
-        .withPort(port)
-        .make
-        .pipe { startZIO =>
-          ZIO.scoped[EventLoopGroup & ServerChannelFactory]((startZIO <* printServerStarted(port)) *> ZIO.never)
-        }
-        .provideSomeLayer(ServerChannelFactory.auto ++ EventLoopGroup.auto(threadCount))
-        .exitCode
-    }
+    for {
+      port <- portGetter
+      threadCount <- getThreadCount
+      exitCode <-
+        Server(httpApp)
+          .withPort(port)
+          .make
+          .pipe { startZIO =>
+            ZIO.scoped[EventLoopGroup & ServerChannelFactory]((startZIO <* printServerStarted(port)) *> ZIO.never)
+          }
+          .provideSomeLayer(ServerChannelFactory.auto ++ EventLoopGroup.auto(threadCount))
+          .exitCode
+    } yield exitCode
   end run
 
 end PrimesServer
