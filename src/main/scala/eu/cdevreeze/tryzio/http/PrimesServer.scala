@@ -21,14 +21,11 @@ import java.io.IOException
 import scala.util.Try
 import scala.util.chaining.*
 
-import eu.cdevreeze.tryzio.http.PrimesServer.validateEnv
 import eu.cdevreeze.tryzio.primes.Primes
-import zhttp.http.*
-import zhttp.service.*
-import zhttp.service.Server.Start
-import zhttp.service.server.ServerChannelFactory
 import zio.*
 import zio.Console.printLine
+import zio.http.*
+import zio.http.model.*
 
 /**
  * HTTP server exposing prime number queries, using ZIO and zio-http.
@@ -40,12 +37,20 @@ object PrimesServer extends ZIOAppDefault:
 
   private val defaultPort = 8080
 
+  private val portGetter: UIO[Int] = ZIO.config(Config.int("port")).orElseSucceed(defaultPort)
+
   private def showThread(url: String): Task[Unit] =
     printLine(s"Current thread: ${Thread.currentThread()}. URL: $url")
 
+  // TODO Use this function
+  private def printServerStarted(port: Int): ZIO[Any, IOException, Unit] =
+    printLine(s"Server started on port $port")
+
   val httpApp: HttpApp[Any, Nothing] = Http.collectZIO[Request] {
     case req @ Method.GET -> !! / "primes" / number =>
-      val getOptNum: Task[Option[BigInt]] = ZIO.attempt(BigInt(number)).asSome
+      val getOptNum: Task[Option[BigInt]] = ZIO
+        .attempt(BigInt(number))
+        .asSome
 
       getOptNum
         .flatMap { optNum =>
@@ -79,25 +84,10 @@ object PrimesServer extends ZIOAppDefault:
   }
 
   def run: UIO[ExitCode] =
-    val portGetter: UIO[Int] = ZIO.config(Config.int("port")).orElseSucceed(defaultPort)
-
-    def printServerStarted(port: Int): ZIO[Any, IOException, Unit] = printLine(s"Server started on port $port")
-
-    val getThreadCount: UIO[Int] =
-      ZIO.attempt(java.lang.Runtime.getRuntime.availableProcessors()).orElseSucceed(2)
-
     for {
       port <- portGetter
-      threadCount <- getThreadCount
       exitCode <-
-        Server(httpApp)
-          .withPort(port)
-          .make
-          .pipe { startZIO =>
-            ZIO.scoped[EventLoopGroup & ServerChannelFactory]((startZIO <* printServerStarted(port)) *> ZIO.never)
-          }
-          .provideSomeLayer(ServerChannelFactory.auto ++ EventLoopGroup.auto(threadCount))
-          .exitCode
+        Server.serve(httpApp.withDefaultErrorResponse).provide(Server.defaultWithPort(port)).exitCode
     } yield exitCode
   end run
 

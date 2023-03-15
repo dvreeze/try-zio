@@ -21,13 +21,10 @@ import java.net.URI
 import scala.util.Try
 import scala.util.chaining.*
 
-import eu.cdevreeze.tryzio.http.PrimeFactorsTestClient.validateEnv
-import zhttp.http.*
-import zhttp.service.ChannelFactory
-import zhttp.service.Client
-import zhttp.service.EventLoopGroup
 import zio.*
 import zio.Console.*
+import zio.http.*
+import zio.http.model.*
 
 /**
  * HTTP client program simultaneously querying the server for prime factors of multiple numbers, using ZIO and zio-http.
@@ -44,8 +41,6 @@ object PrimeFactorsTestClient extends ZIOAppDefault:
   private val defaultMinNumber = BigInt(12_000_000)
   private val defaultMaxNumber = defaultMinNumber + 200
 
-  private val env = ChannelFactory.auto ++ EventLoopGroup.auto()
-
   def run: URIO[ZIOAppArgs, ExitCode] =
     val argsGetter: ZIO[ZIOAppArgs, Throwable, Chunk[String]] = getArgs
     val configGetter: URIO[ZIOAppArgs, Config] = argsGetter.flatMap { args =>
@@ -58,7 +53,7 @@ object PrimeFactorsTestClient extends ZIOAppDefault:
       }
     }.orDie
 
-    val getStringResponses: RIO[ZIOAppArgs & ChannelFactory & EventLoopGroup, Seq[String]] =
+    val getStringResponses: RIO[ZIOAppArgs, Seq[String]] =
       for {
         cfg <- configGetter
         numbers <- ZIO.attempt(cfg.minNumber.to(cfg.maxNumber))
@@ -67,21 +62,24 @@ object PrimeFactorsTestClient extends ZIOAppDefault:
           .tap(n => printLine(s"Number of available processors: $n"))
         responseStringsFiber <- ZIO
           .foreachPar(numbers.toList) { number =>
-            getUrl(cfg.host, cfg.port, number).flatMap(getResponseAsString).tap(printLine(_))
+            getUrl(cfg.host, cfg.port, number)
+              .flatMap(getResponseAsString)
+              .tap(printLine(_))
+              .provide(Client.default)
           }
           .withParallelism(1.max(numberOfProcessors / 2))
           .fork
         responseStrings <- responseStringsFiber.join
       } yield responseStrings
 
-    getStringResponses.tapError(t => printError(t)).orDie.exitCode.provideSomeLayer(env)
+    getStringResponses.tapError(t => printError(t)).orDie.exitCode
   end run
 
-  private def getResponseAsString(url: URI): RIO[ChannelFactory & EventLoopGroup, String] =
+  private def getResponseAsString(url: URI): RIO[Client, String] =
     for {
       headers <- ZIO.attempt(Headers.host(url.getHost))
       response <- Client.request(url = url.toString, headers = headers)
-      content <- response.bodyAsString
+      content <- response.body.asString
     } yield content
 
   private def getUrl(host: String, port: Int, number: BigInt): Task[URI] =

@@ -31,8 +31,7 @@ ThisBuild / pomIncludeRepository := { _ => false }
 
 val zioVersion = "2.0.10"
 val zioJsonVersion = "0.4.2"
-// val zioHttpVersion = "1.0.0.0-RC27"
-val zioHttpVersion = "2.0.0-RC10" // 2.0.0-RC11 misses Response.bodyAsString etc.?
+val zioHttpVersion = "0.0.5"
 val zioConfigVersion = "4.0.0-RC10"
 val testContainersVersion = "1.17.6"
 val jooqVersion = "3.16.11" // Works with Java 11
@@ -49,8 +48,7 @@ ThisBuild / libraryDependencies += "dev.zio" %% "zio-config" % zioConfigVersion
 
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-json" % zioJsonVersion
 
-// ThisBuild / libraryDependencies += "dev.zio" %% "zio-http" % zioHttpVersion
-ThisBuild / libraryDependencies += "io.d11" %% "zhttp" % zioHttpVersion
+ThisBuild / libraryDependencies += "dev.zio" %% "zio-http" % zioHttpVersion
 
 ThisBuild / libraryDependencies += "javax.servlet" % "servlet-api" % "3.0-alpha-1" % Provided
 
