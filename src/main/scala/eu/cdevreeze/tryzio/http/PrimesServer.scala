@@ -42,7 +42,6 @@ object PrimesServer extends ZIOAppDefault:
   private def showThread(url: String): Task[Unit] =
     printLine(s"Current thread: ${Thread.currentThread()}. URL: $url")
 
-  // TODO Use this function
   private def printServerStarted(port: Int): ZIO[Any, IOException, Unit] =
     printLine(s"Server started on port $port")
 
@@ -87,7 +86,10 @@ object PrimesServer extends ZIOAppDefault:
     for {
       port <- portGetter
       exitCode <-
-        Server.serve(httpApp.withDefaultErrorResponse).provide(Server.defaultWithPort(port)).exitCode
+        Server
+          .serve(httpApp.withDefaultErrorResponse)
+          .provide(Server.defaultWithPort(port).tap(_ => printServerStarted(port)))
+          .exitCode
     } yield exitCode
   end run
 
