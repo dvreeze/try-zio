@@ -163,7 +163,7 @@ final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo:
     for {
       dsl <- ZIO.attempt(makeDsl())
       sql <- ZIO.attempt(createFullQuery(Seq(basePostCte(dsl)), _.select().from(table("posts")), dsl))
-      rows <- cp.txReadCommitted(queryForSeq(sql.getSQL, Seq.empty, mapPostRow))
+      rows <- cp.txReadCommitted.run(queryForSeq(sql.getSQL, Seq.empty, mapPostRow))
       posts <- ZIO.attempt(PostRow.toPosts(rows))
       filteredPosts <- ZIO.filter(posts)(p)
     } yield filteredPosts
@@ -194,7 +194,7 @@ final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo:
       for {
         dsl <- ZIO.attempt(makeDsl())
         sql <- ZIO.attempt(makeSql(dsl))
-        rows <- cp.txReadCommitted(queryForSeq(sql.getSQL, Seq(Argument.LongArg(postId)), mapPostRow))
+        rows <- cp.txReadCommitted.run(queryForSeq(sql.getSQL, Seq(Argument.LongArg(postId)), mapPostRow))
         posts <- ZIO.attempt(PostRow.toPosts(rows))
       } yield posts
 
@@ -225,7 +225,7 @@ final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo:
       for {
         dsl <- ZIO.attempt(makeDsl())
         sql <- ZIO.attempt(makeSql(dsl))
-        rows <- cp.txReadCommitted(queryForSeq(sql.getSQL, Seq(Argument.StringArg(name)), mapPostRow))
+        rows <- cp.txReadCommitted.run(queryForSeq(sql.getSQL, Seq(Argument.StringArg(name)), mapPostRow))
         posts <- ZIO.attempt(PostRow.toPosts(rows))
       } yield posts
 

@@ -146,7 +146,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
     for {
       dsl <- ZIO.attempt(makeDsl())
       sqlQuery <- ZIO.attempt(dsl.select(USER.HOST, USER.USER_).from(USER))
-      result <- cp.txReadCommitted {
+      result <- cp.txReadCommitted.run {
         queryForSeq(sqlQuery.getSQL, Seq.empty, { (rs, _) => User(rs.getString(1), rs.getString(2)) })
       }
     } yield result
@@ -156,7 +156,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
     for {
       dsl <- ZIO.attempt(makeDsl())
       sqlQuery <- ZIO.attempt(dsl.select(USER.HOST, USER.USER_).from(USER))
-      result <- cp.txReadCommitted {
+      result <- cp.txReadCommitted.run {
         query(
           sqlQuery.getSQL,
           Seq.empty,
@@ -170,7 +170,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
     for {
       dsl <- ZIO.attempt(makeDsl())
       sqlQuery <- ZIO.attempt(dsl.select(USER.HOST, USER.USER_).from(USER))
-      result <- cp.txReadCommitted {
+      result <- cp.txReadCommitted.run {
         ZIO.service[ZConnection].flatMap { conn =>
           ZIO.attempt {
             Using.resource(conn.connection.prepareStatement(sqlQuery.getSQL)) { ps =>
@@ -197,7 +197,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
 
     for {
       sqlQuery <- sqlQueryTask
-      result <- cp.txReadCommitted {
+      result <- cp.txReadCommitted.run {
         queryForSeq(
           sqlQuery.getSQL,
           Seq(StringArg(timezoneLikeString)),
@@ -221,7 +221,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
 
     for {
       sqlStat <- sqlStatTask
-      _ <- cp.txReadCommitted {
+      _ <- cp.txReadCommitted.run {
         update(sqlStat.getSQL, Seq.empty)
       }
     } yield ()
@@ -242,7 +242,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
       dsl <- ZIO.attempt(makeDsl())
       sql1 <- sql1Task(dsl)
       sql2 <- sql2Task(dsl)
-      _ <- cp.txReadCommitted {
+      _ <- cp.txReadCommitted.run {
         update(sql1.getSQL, Seq.empty)
           .flatMap(_ => update(sql2.getSQL, Seq.empty))
       }
@@ -255,7 +255,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
       sqlQuery <- ZIO.attempt {
         dsl.select(field("host", VARCHAR), field("name", VARCHAR)).from(table("user_summary"))
       }
-      result <- cp.txReadCommitted {
+      result <- cp.txReadCommitted.run {
         queryForSeq(sqlQuery.getSQL, Seq.empty, { (rs, _) => User(rs.getString(1), rs.getString(2)) })
       }
     } yield result
@@ -265,7 +265,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
     for {
       dsl <- ZIO.attempt(makeDsl())
       sqlStat <- ZIO.attempt(dsl.dropTable(table("user_summary")))
-      _ <- cp.txReadCommitted {
+      _ <- cp.txReadCommitted.run {
         update(sqlStat.getSQL, Seq.empty)
       }
     } yield ()

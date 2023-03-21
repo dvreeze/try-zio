@@ -31,7 +31,7 @@ import zio.*
  */
 final class DataSourceTransaction[A](val dataSource: DataSource, isolationLevel: Int) extends Transaction[A](isolationLevel):
 
-  def apply(f: => RIO[ZConnection, A]): Task[A] =
+  def run(f: => RIO[ZConnection, A]): Task[A] =
     // See https://www.baeldung.com/java-sql-connection-thread-safety why it is needed to use the blocking thread pool
     ZIO.blocking {
       ZIO.acquireReleaseWith {

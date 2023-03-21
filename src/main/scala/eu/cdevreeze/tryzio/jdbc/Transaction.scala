@@ -30,4 +30,4 @@ import zio.*
  */
 trait Transaction[A](val isolationLevel: Int):
 
-  def apply(f: => RIO[ZConnection, A]): Task[A]
+  def run(f: => RIO[ZConnection, A]): Task[A]
