@@ -28,12 +28,11 @@ import zio.Console.*
 object GuessNumber extends ZIOAppDefault:
 
   def run: Task[Boolean] =
-    val getInitialAttemptNumber: UIO[Ref[Int]] = Ref.make(0)
-    def getNextAttemptNumber(ref: Ref[Int]): UIO[Ref[Int]] = ref.update(_ + 1) *> ZIO.succeed(ref)
+    def getNextAttemptNumber(ref: => Ref[Int]): UIO[Int] = ref.updateAndGet(_ + 1)
 
     for {
-      ref <- getInitialAttemptNumber
-      b <- getNextAttemptNumber(ref).flatMap(_.get).flatMap(guessOnce).repeatUntilEquals(true)
+      ref <- Ref.make(0)
+      b <- getNextAttemptNumber(ref).flatMap(guessOnce).repeatUntilEquals(true)
     } yield b
   end run
 

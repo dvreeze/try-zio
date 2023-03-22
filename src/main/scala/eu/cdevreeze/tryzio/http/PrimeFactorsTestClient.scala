@@ -34,24 +34,32 @@ import zio.http.model.*
  */
 object PrimeFactorsTestClient extends ZIOAppDefault:
 
-  private case class Config(host: String, port: Int, minNumber: BigInt, maxNumber: BigInt)
+  private case class AppConfig(host: String, port: Int, minNumber: BigInt, maxNumber: BigInt)
 
   private val defaultHost = "localhost"
   private val defaultPort = 8080
   private val defaultMinNumber = BigInt(12_000_000)
   private val defaultMaxNumber = defaultMinNumber + 200
 
+  private val hostGetter: UIO[String] = ZIO.config(Config.string("host")).orElseSucceed(defaultHost)
+  private val portGetter: UIO[Int] = ZIO.config(Config.int("port")).orElseSucceed(defaultPort)
+
   def run: URIO[ZIOAppArgs, ExitCode] =
     val argsGetter: ZIO[ZIOAppArgs, Throwable, Chunk[String]] = getArgs
-    val configGetter: URIO[ZIOAppArgs, Config] = argsGetter.flatMap { args =>
-      ZIO.attempt {
-        val host = args.headOption.getOrElse(defaultHost)
-        val port = args.drop(1).headOption.getOrElse(defaultPort.toString).toIntOption.getOrElse(defaultPort)
-        val minNumber = args.drop(2).headOption.getOrElse(defaultMinNumber.toString).pipe(n => Try(BigInt(n)).getOrElse(defaultMinNumber))
-        val maxNumber = args.drop(3).headOption.getOrElse(defaultMaxNumber.toString).pipe(n => Try(BigInt(n)).getOrElse(defaultMaxNumber))
-        Config(host, port, minNumber, maxNumber)
-      }
-    }.orDie
+    val configGetter: URIO[ZIOAppArgs, AppConfig] =
+      (for {
+        host <- hostGetter
+        port <- portGetter
+        args <- argsGetter
+        minNumber <- ZIO
+          .attempt(args.head)
+          .mapAttempt(n => BigInt(n))
+          .orElseSucceed(defaultMinNumber)
+        maxNumber <- ZIO
+          .attempt(args.drop(1).head)
+          .mapAttempt(n => BigInt(n))
+          .orElseSucceed(defaultMaxNumber)
+      } yield AppConfig(host, port, minNumber, maxNumber)).orDie
 
     val getStringResponses: RIO[ZIOAppArgs, Seq[String]] =
       for {

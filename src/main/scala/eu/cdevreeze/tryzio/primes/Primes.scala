@@ -72,8 +72,8 @@ object Primes:
     else findPrimeFactors(n, two, PrimeFactors(Nil)).map(_.asc)
 
   private def discardMultiplesOfRoots(numbers: List[BigInt]): Task[List[BigInt]] =
-    two.to(numbers.lastOption.getOrElse(one)).foldLeft(ZIO.attempt(numbers)) { (getAccNumbers, nextRoot) =>
-      getAccNumbers.flatMap(accNumbers => discardMultiplesOfRoot(accNumbers, nextRoot))
+    ZIO.foldLeft(two.to(numbers.lastOption.getOrElse(one)))(numbers) { (accNumbers, nextRoot) =>
+      discardMultiplesOfRoot(accNumbers, nextRoot)
     }
   end discardMultiplesOfRoots
 

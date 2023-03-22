@@ -32,7 +32,7 @@ object FindPrimeFactors extends ZIOAppDefault:
     for {
       _ <- printLine("Enter an integer number >= 2:")
       num <- readLine
-        .flatMap(n => ZIO.attempt(BigInt(n)).tapError(n => printLine(s"Not an integer number: $n")))
+        .flatMap(n => ZIO.attempt(BigInt(n)).tapError(_ => printLine(s"Not an integer number: $n")))
         .filterOrElseWith(_ >= 2)(n => ZIO.fail(new RuntimeException(s"Not an integer number >= 2: $n")))
       _ <- printLine(s"The prime factors of $num are:")
       primeFactorsFiber <- Primes.findPrimeFactors(num).fork
