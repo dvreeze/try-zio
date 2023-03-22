@@ -23,9 +23,10 @@ import scala.util.chaining.*
 
 import eu.cdevreeze.tryzio.primes.Primes
 import zio.*
-import zio.Console.printLine
 import zio.http.*
 import zio.http.model.*
+import zio.metrics.Metric
+import zio.metrics.MetricLabel
 
 /**
  * HTTP server exposing prime number queries, using ZIO and zio-http.
@@ -39,11 +40,17 @@ object PrimesServer extends ZIOAppDefault:
 
   private val portGetter: UIO[Int] = ZIO.config(Config.int("port")).orElseSucceed(defaultPort)
 
-  private def showThread(url: String): Task[Unit] =
-    printLine(s"Current thread: ${Thread.currentThread()}. URL: $url")
+  private def countAllRequests(httpMethod: String, handlerUrl: String): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    Metric
+      .counterInt("count_all_requests")
+      .fromConst(1)
+      .tagged(MetricLabel("httpMethod", httpMethod), MetricLabel("handlerUrl", handlerUrl))
 
-  private def printServerStarted(port: Int): ZIO[Any, IOException, Unit] =
-    printLine(s"Server started on port $port")
+  private def logRequest(url: String): UIO[Unit] =
+    ZIO.logDebug(s"Request URL: $url")
+
+  private def logServerStarted(port: Int): UIO[Unit] =
+    ZIO.logInfo(s"Server started on port $port")
 
   val httpApp: HttpApp[Any, Nothing] = Http.collectZIO[Request] {
     case req @ Method.GET -> !! / "primes" / number =>
@@ -62,8 +69,8 @@ object PrimesServer extends ZIOAppDefault:
                 .mapAttempt(primes => Response.text(s"Primes <= $num: ${primes.mkString(", ")}"))
                 .catchAll(_ => ZIO.succeed(Response.fromHttpError(HttpError.InternalServerError(s"No primes found for $number"))))
         }
-        .tap(_ => ZIO.attempt(req.url.path.toString).flatMap(path => showThread(path)))
-        .orDie
+        .tap(_ => ZIO.attempt(req.url.path.toString).flatMap(path => logRequest(path)))
+        .orDie @@ countAllRequests("GET", "/primes")
     case req @ Method.GET -> !! / "primeFactors" / number =>
       val getOptNum: Task[Option[BigInt]] = ZIO.attempt(BigInt(number)).asSome
 
@@ -78,8 +85,8 @@ object PrimesServer extends ZIOAppDefault:
                 .mapAttempt(factors => Response.text(s"Prime factors of $num: ${factors.getFactors.mkString(", ")}"))
                 .catchAll(_ => ZIO.succeed(Response.fromHttpError(HttpError.InternalServerError(s"No prime factors found for $number"))))
         }
-        .tap(_ => ZIO.attempt(req.url.path.toString).flatMap(path => showThread(path)))
-        .orDie
+        .tap(_ => ZIO.attempt(req.url.path.toString).flatMap(path => logRequest(path)))
+        .orDie @@ countAllRequests("GET", "/primeFactors")
   }
 
   def run: UIO[ExitCode] =
@@ -88,7 +95,7 @@ object PrimesServer extends ZIOAppDefault:
       exitCode <-
         Server
           .serve(httpApp.withDefaultErrorResponse)
-          .provide(Server.defaultWithPort(port).tap(_ => printServerStarted(port)))
+          .provide(Server.defaultWithPort(port).tap(_ => logServerStarted(port)))
           .exitCode
     } yield exitCode
   end run

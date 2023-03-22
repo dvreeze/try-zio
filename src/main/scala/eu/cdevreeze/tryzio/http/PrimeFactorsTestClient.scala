@@ -22,7 +22,6 @@ import scala.util.Try
 import scala.util.chaining.*
 
 import zio.*
-import zio.Console.*
 import zio.http.*
 import zio.http.model.*
 
@@ -67,12 +66,12 @@ object PrimeFactorsTestClient extends ZIOAppDefault:
         numbers <- ZIO.attempt(cfg.minNumber.to(cfg.maxNumber))
         numberOfProcessors <- ZIO
           .attempt(java.lang.Runtime.getRuntime.availableProcessors)
-          .tap(n => printLine(s"Number of available processors: $n"))
+          .tap(n => ZIO.logInfo(s"Number of available processors: $n"))
         responseStringsFiber <- ZIO
           .foreachPar(numbers.toList) { number =>
             getUrl(cfg.host, cfg.port, number)
               .flatMap(getResponseAsString)
-              .tap(printLine(_))
+              .tap(s => ZIO.logInfo(s))
               .provide(Client.default)
           }
           .withParallelism(1.max(numberOfProcessors / 2))
@@ -80,7 +79,7 @@ object PrimeFactorsTestClient extends ZIOAppDefault:
         responseStrings <- responseStringsFiber.join
       } yield responseStrings
 
-    getStringResponses.tapError(t => printError(t)).orDie.exitCode
+    getStringResponses.tapError(t => ZIO.logError(t.getMessage)).orDie.exitCode
   end run
 
   private def getResponseAsString(url: URI): RIO[Client, String] =
