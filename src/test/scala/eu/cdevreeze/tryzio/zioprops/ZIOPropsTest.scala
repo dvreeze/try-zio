@@ -41,7 +41,7 @@ object ZIOPropsTest extends ZIOSpecDefault:
       suite("flatMap, success channel") {
         List(
           test("Function 'map' can be expressed in terms of 'flatMap' (happy flow)") {
-            check(genSomeBigInts, genBigIntFunction) { (n, func) =>
+            check(genBigInt, genBigIntFunction) { (n, func) =>
               val computed = startEffect(n).map(func)
               val expected = startEffect(n).flatMap(func.andThen(ZIO.succeed(_)))
 
@@ -51,8 +51,32 @@ object ZIOPropsTest extends ZIOSpecDefault:
               } yield assertTrue(x == y)
             }
           } @@ TestAspect.samples(sampleCount),
+          test("Function '*>' can be expressed in terms of 'flatMap' (happy flow)") {
+            check(genBigInt, genBigInt2) { (n, m) =>
+              val effect = ZIO.succeed(m)
+              val computed = startEffect(n) *> effect
+              val expected = startEffect(n).flatMap(_ => effect)
+
+              for {
+                x <- computed
+                y <- expected
+              } yield assertTrue(x == y)
+            }
+          } @@ TestAspect.samples(sampleCount),
+          test("Function 'tap' can be expressed in terms of 'flatMap' and 'as' (happy flow)") {
+            check(genBigInt, genBigIntFunction) { (n, func) =>
+              val effectFunction = func.andThen(ZIO.succeed(_))
+              val computed = startEffect(n).tap(effectFunction)
+              val expected = startEffect(n).flatMap(k => effectFunction(k).as(k))
+
+              for {
+                x <- computed
+                y <- expected
+              } yield assertTrue(x == y)
+            }
+          } @@ TestAspect.samples(sampleCount),
           test("Function 'as' can be expressed in terms of 'map' (happy flow)") {
-            check(genSomeBigInts) { n =>
+            check(genBigInt) { n =>
               val m = n + 123
               val computed = startEffect(n).as(m)
               val expected = startEffect(n).map(_ => m)
@@ -64,7 +88,7 @@ object ZIOPropsTest extends ZIOSpecDefault:
             }
           } @@ TestAspect.samples(sampleCount),
           test("Function 'asRight' can be expressed in terms of 'map' (happy flow)") {
-            check(genSomeBigInts) { n =>
+            check(genBigInt) { n =>
               val computed = startEffect(n).asRight
               val expected = startEffect(n).map(Right(_))
 
@@ -75,7 +99,7 @@ object ZIOPropsTest extends ZIOSpecDefault:
             }
           } @@ TestAspect.samples(sampleCount),
           test("Function 'asSome' can be expressed in terms of 'map' (happy flow)") {
-            check(genSomeBigInts) { n =>
+            check(genBigInt) { n =>
               val computed = startEffect(n).asSome
               val expected = startEffect(n).map(Option(_))
 
@@ -86,7 +110,7 @@ object ZIOPropsTest extends ZIOSpecDefault:
             }
           } @@ TestAspect.samples(sampleCount),
           test("Function 'ZIO.when' can be expressed in terms of 'map' (happy flow)") {
-            check(Gen.boolean, genSomeBigInts) { (b, n) =>
+            check(Gen.boolean, genBigInt) { (b, n) =>
               val computed = ZIO.when(b)(startEffect(n))
               val expected = startEffect(n).map { i => if b then Some(i) else None }
 
@@ -97,7 +121,7 @@ object ZIOPropsTest extends ZIOSpecDefault:
             }
           } @@ TestAspect.samples(sampleCount),
           test("Function 'ZIO.whenZIO' can be expressed in terms of 'flatMap' and 'map' (happy flow)") {
-            check(Gen.boolean, genSomeBigInts) { (b, n) =>
+            check(Gen.boolean, genBigInt) { (b, n) =>
               val predEffect = ZIO.succeed(b)
               val computed = ZIO.whenZIO(predEffect)(startEffect(n))
               val expected =
@@ -118,7 +142,7 @@ object ZIOPropsTest extends ZIOSpecDefault:
       suite("flatMapError, error channel") {
         List(
           test("Function 'mapError' can be expressed in terms of 'flatMapError' (error flow)") {
-            check(genSomeBigInts, genBigIntFunction) { (n, func) =>
+            check(genBigInt, genBigIntFunction) { (n, func) =>
               val computed = startErrorEffect(n).mapError(func)
               val expected = startErrorEffect(n).flatMapError(func.andThen(ZIO.succeed(_)))
 
@@ -133,9 +157,11 @@ object ZIOPropsTest extends ZIOSpecDefault:
     )
   }
 
-  private val genSomeBigInts: Gen[Any, BigInt] = Gen.bigInt(1, 15000)
+  private val genBigInt: Gen[Any, BigInt] = Gen.bigInt(1, 15000)
 
-  // Total functions that do not fail ("DTP": deterministic, total, pure)
+  private val genBigInt2: Gen[Any, BigInt] = Gen.bigInt(1, 30000)
+
+  2 // Total functions that do not fail ("DTP": deterministic, total, pure)
   private val genBigIntFunction: Gen[Any, BigInt => BigInt] =
     Gen.fromIterable(
       List(
