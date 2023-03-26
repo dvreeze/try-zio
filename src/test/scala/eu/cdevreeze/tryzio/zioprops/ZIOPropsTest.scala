@@ -161,7 +161,7 @@ object ZIOPropsTest extends ZIOSpecDefault:
 
   private val genBigInt2: Gen[Any, BigInt] = Gen.bigInt(1, 30000)
 
-  2 // Total functions that do not fail ("DTP": deterministic, total, pure)
+  // Total functions that do not fail ("DTP": deterministic, total, pure)
   private val genBigIntFunction: Gen[Any, BigInt => BigInt] =
     Gen.fromIterable(
       List(
