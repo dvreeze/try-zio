@@ -33,6 +33,7 @@ val zioVersion = "2.0.13"
 val zioJsonVersion = "0.5.0"
 val zioHttpVersion = "0.0.5"
 val zioConfigVersion = "4.0.0-RC14"
+val zioJdbcVersion = "0.0.2"
 val testContainersVersion = "1.18.0"
 val jooqVersion = "3.16.18" // Works with Java 11
 
@@ -44,7 +45,9 @@ ThisBuild / libraryDependencies += "dev.zio" %% "zio-test-magnolia" % zioVersion
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-test-junit" % zioVersion % Test
 
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-config" % zioConfigVersion
-ThisBuild / libraryDependencies += "dev.zio" %% "zio-jdbc" % "0.0.2"
+ThisBuild / libraryDependencies += "dev.zio" %% "zio-config-typesafe" % zioConfigVersion
+
+ThisBuild / libraryDependencies += "dev.zio" %% "zio-jdbc" % zioJdbcVersion
 
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-json" % zioJsonVersion
 
