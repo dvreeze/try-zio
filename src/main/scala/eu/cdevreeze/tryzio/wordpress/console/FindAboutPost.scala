@@ -61,7 +61,7 @@ object FindAboutPost extends ZIOAppDefault:
                 from wp_posts
                where post_name = $postName"""
       }
-      postOption <- transaction {
+      postOption <- transaction.apply { // Method name "apply" can be left out, of course.
         selectOne(sql.as[Post])
       }
     } yield postOption
