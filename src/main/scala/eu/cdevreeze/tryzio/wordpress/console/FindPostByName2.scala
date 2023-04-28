@@ -40,7 +40,7 @@ object FindPostByName2 extends ZIOAppDefault:
     for {
       _ <- printLine("Enter a post name:")
       postName <- readLine
-      _ <- printLine("Finding post (if any) for post name $postName:")
+      _ <- printLine(s"Finding post (if any) for post name '$postName':")
       repo <- ZIO
         .service[PostRepo]
         .provideLayer((dsLayer >>> ZConnectionPoolFromDataSource.layer) >>> PostRepoImpl2.layer)

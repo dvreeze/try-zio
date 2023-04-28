@@ -24,9 +24,6 @@ import scala.util.Try
 import scala.util.Using
 import scala.util.chaining.*
 
-import eu.cdevreeze.tryzio.jdbc.*
-import eu.cdevreeze.tryzio.jdbc.ConnectionWork.*
-import eu.cdevreeze.tryzio.jdbc.JdbcSupport.Argument
 import eu.cdevreeze.tryzio.jooq.generated.wordpress.Tables.*
 import eu.cdevreeze.tryzio.wordpress.model.CommentStatus
 import eu.cdevreeze.tryzio.wordpress.model.Post
@@ -51,6 +48,7 @@ import org.jooq.impl.DSL.table
 import org.jooq.impl.SQLDataType.*
 import org.jooq.types.ULong
 import zio.*
+import zio.jdbc.*
 import zio.json.*
 
 /**
@@ -59,78 +57,39 @@ import zio.json.*
  * @author
  *   Chris de Vreeze
  */
-final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo:
-
-  private def makeDsl(): DSLContext = DSL.using(SQLDialect.MYSQL)
+final class PostRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) extends PostRepo:
 
   // Common Table Expression for the unfiltered Post rows
-  private def basePostCte(dsl: DSLContext): CommonTableExpression[_] =
-    name("posts").unquotedName
-      .as(
-        dsl
-          .select(
-            WP_POSTS.ID,
-            WP_POSTS.POST_DATE_GMT,
-            WP_POSTS.POST_CONTENT,
-            WP_POSTS.POST_TITLE,
-            WP_POSTS.POST_EXCERPT,
-            WP_POSTS.POST_STATUS,
-            WP_POSTS.COMMENT_STATUS,
-            WP_POSTS.PING_STATUS,
-            WP_POSTS.POST_NAME,
-            WP_POSTS.TO_PING,
-            WP_POSTS.PINGED,
-            WP_POSTS.POST_MODIFIED_GMT,
-            WP_POSTS.POST_CONTENT_FILTERED,
-            WP_POSTS.POST_PARENT,
-            WP_POSTS.GUID,
-            WP_POSTS.MENU_ORDER,
-            WP_POSTS.POST_TYPE,
-            WP_POSTS.POST_MIME_TYPE,
-            WP_POSTS.COMMENT_COUNT,
-            WP_USERS.ID.as("user_id"),
-            WP_USERS.USER_LOGIN,
-            WP_USERS.USER_EMAIL,
-            WP_USERS.DISPLAY_NAME,
-            jsonObjectAgg(
-              cast(coalesce(WP_POSTMETA.META_KEY, DSL.inline("")), VARCHAR(255)),
-              coalesce(WP_POSTMETA.META_VALUE, DSL.inline(""))
-            )
-          )
-          .from(WP_POSTS)
-          .leftJoin(WP_USERS)
-          .on(WP_POSTS.POST_AUTHOR.equal(WP_USERS.ID))
-          .leftJoin(WP_POSTMETA)
-          .on(WP_POSTS.ID.equal(WP_POSTMETA.POST_ID))
-          .groupBy(WP_POSTS.ID)
-      )
+  private def baseSelectQuery: SqlFragment =
+    sql"""select
+            wp_posts.ID, wp_posts.post_date_gmt, wp_posts.post_content,
+            wp_posts.post_title, wp_posts.post_excerpt, wp_posts.post_status,
+            wp_posts.comment_status, wp_posts.ping_status, wp_posts.post_name,
+            wp_posts.to_ping, wp_posts.pinged, wp_posts.post_modified_gmt,
+            wp_posts.post_content_filtered, wp_posts.post_parent, wp_posts.guid,
+            wp_posts.menu_order, wp_posts.post_type, wp_posts.post_mime_type,
+            wp_posts.comment_count, wp_users.ID as user_id, wp_users.user_login,
+            wp_users.user_email, wp_users.display_name,
+            json_objectagg(cast(coalesce(wp_postmeta.meta_key, '') as char(255)), coalesce(wp_postmeta.meta_value, ''))
+          from wp_posts
+          left outer join wp_users on wp_posts.post_author = wp_users.ID
+          left outer join wp_postmeta on wp_posts.ID = wp_postmeta.post_id
+         group by wp_posts.ID"""
 
-  // Creates a Common Table Expression for all descendant-or-self Post rows of the result of the given CTE
-  // TODO Make ID column name explicit (probably as method parameter)
-  private def createDescendantOrSelfPostIdsCte(
-      startPostIdsCte: CommonTableExpression[Record1[ULong]],
-      dsl: DSLContext
-  ): CommonTableExpression[_] =
-    name("post_tree").unquotedName
-      .fields(name("post_id").unquotedName, name("post_name").unquotedName, name("parent_id").unquotedName)
-      .as(
-        dsl
-          .select(WP_POSTS.ID, WP_POSTS.POST_NAME, WP_POSTS.POST_PARENT)
-          .from(WP_POSTS)
-          .where(WP_POSTS.ID.in(dsl.select(field("id", BIGINTUNSIGNED)).from(startPostIdsCte)))
-          .unionAll(
-            dsl
-              .select(WP_POSTS.ID, WP_POSTS.POST_NAME, WP_POSTS.POST_PARENT)
-              .from(table("post_tree"))
-              .join(WP_POSTS)
-              .on(field("post_tree.post_id", BIGINTUNSIGNED).equal(WP_POSTS.POST_PARENT))
-          )
-      )
+  // Creates a Common Table Expression for all descendant-or-self Post rows of the result of table post_ids
+  private def createDescendantOrSelfPostIdsCte: SqlFragment =
+    sql"""
+         post_tree(post_id, post_name, parent_id) as (
+             (select wp_posts.ID, wp_posts.post_name, wp_posts.post_parent
+               from wp_posts
+              where wp_posts.ID in (select id from post_ids)) union all
+             (select wp_posts.ID, wp_posts.post_name, wp_posts.post_parent
+                from post_tree
+                join wp_posts on post_tree.post_id = wp_posts.post_parent)
+         )
+       """
 
-  private def createFullQuery(ctes: Seq[CommonTableExpression[_]], makeQuery: WithStep => Query, dsl: DSLContext): Query =
-    dsl.withRecursive(ctes: _*).pipe(makeQuery)
-
-  private def mapPostRow(rs: ResultSet, idx: Int): PostRow =
+  private def mapPostRow(rs: ResultSet): PostRow =
     PostRow(
       postId = rs.getLong(1),
       postDate = Try(rs.getTimestamp(2).toInstant).getOrElse(Instant.EPOCH),
@@ -158,13 +117,19 @@ final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo:
       postMeta = JsonDecoder[Map[String, String]].decodeJson(rs.getString(24)).getOrElse(Map.empty)
     )
 
+  private given JdbcDecoder[PostRow] = JdbcDecoder(mapPostRow)
+
   def filterPosts(p: Post => Task[Boolean]): Task[Seq[Post]] =
     // Inefficient
     for {
-      dsl <- ZIO.attempt(makeDsl())
-      sql <- ZIO.attempt(createFullQuery(Seq(basePostCte(dsl)), _.select().from(table("posts")), dsl))
-      rows <- cp.txReadCommitted.run(queryForSeq(sql.getSQL, Seq.empty, mapPostRow))
-      posts <- ZIO.attempt(PostRow.toPosts(rows))
+      sqlFragment <- ZIO.attempt {
+        sql"with posts as ($baseSelectQuery) select * from posts"
+      }
+      posts <- transaction
+        .apply {
+          selectAll(sqlFragment.as[PostRow]).mapAttempt(rows => PostRow.toPosts(rows.toSeq))
+        }
+        .provideLayer(cpLayer)
       filteredPosts <- ZIO.filter(posts)(p)
     } yield filteredPosts
 
@@ -173,62 +138,52 @@ final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo:
     filterPosts(p).map(_.map(_.copy(postContentOption = None).copy(postContentFilteredOption = None)))
 
   def findPost(postId: Long): Task[Option[Post]] =
-    def startPostIdCte(dsl: DSLContext): CommonTableExpression[Record1[ULong]] =
-      name("post_ids").unquotedName
-        .as(
-          dsl
-            .select(WP_POSTS.ID)
-            .from(WP_POSTS)
-            .where(WP_POSTS.ID.equal(`val`("dummyIdArg", BIGINTUNSIGNED)))
-        )
-    def recursivePostIdsCte(dsl: DSLContext) = createDescendantOrSelfPostIdsCte(startPostIdCte(dsl), dsl)
-    def makeSql(dsl: DSLContext) = createFullQuery(
-      Seq(startPostIdCte(dsl), recursivePostIdsCte(dsl), basePostCte(dsl)),
-      _.select()
-        .from(table("posts"))
-        .where(field("id", BIGINTUNSIGNED).in(dsl.select(field("post_id", BIGINTUNSIGNED)).from(table("post_tree")))),
-      dsl
-    )
-
-    val filteredPosts =
+    val filteredPosts: Task[Seq[Post]] =
       for {
-        dsl <- ZIO.attempt(makeDsl())
-        sql <- ZIO.attempt(makeSql(dsl))
-        rows <- cp.txReadCommitted.run(queryForSeq(sql.getSQL, Seq(Argument.LongArg(postId)), mapPostRow))
-        posts <- ZIO.attempt(PostRow.toPosts(rows))
+        sqlFragment <- ZIO.attempt {
+          sql"""
+             with recursive
+             post_ids as (
+                 select wp_posts.id from wp_posts where wp_posts.ID = $postId
+             ),
+             $createDescendantOrSelfPostIdsCte,
+             posts as ($baseSelectQuery)
+             select * from posts where ID in (select post_id from post_tree)
+           """
+        }
+        posts <- transaction
+          .apply {
+            selectAll(sqlFragment.as[PostRow]).mapAttempt(rows => PostRow.toPosts(rows.toSeq))
+          }
+          .provideLayer(cpLayer)
       } yield posts
 
+    // Return top-level post(s) only, be it with their descendants
     filteredPosts.map(_.find(_.postId == postId))
   end findPost
 
   def findPostByName(name: String): Task[Option[Post]] =
-    def startPostIdCte(dsl: DSLContext): CommonTableExpression[Record1[ULong]] =
-      DSL
-        .name("post_ids")
-        .unquotedName
-        .as(
-          dsl
-            .select(WP_POSTS.ID)
-            .from(WP_POSTS)
-            .where(WP_POSTS.POST_NAME.equal(`val`("dummyNameArg", VARCHAR)))
-        )
-    def recursivePostIdsCte(dsl: DSLContext) = createDescendantOrSelfPostIdsCte(startPostIdCte(dsl), dsl)
-    def makeSql(dsl: DSLContext) = createFullQuery(
-      Seq(startPostIdCte(dsl), recursivePostIdsCte(dsl), basePostCte(dsl)),
-      _.select()
-        .from(table("posts"))
-        .where(field("id", BIGINTUNSIGNED).in(dsl.select(field("post_id", BIGINTUNSIGNED)).from(table("post_tree")))),
-      dsl
-    )
-
-    val filteredPosts =
+    val filteredPosts: Task[Seq[Post]] =
       for {
-        dsl <- ZIO.attempt(makeDsl())
-        sql <- ZIO.attempt(makeSql(dsl))
-        rows <- cp.txReadCommitted.run(queryForSeq(sql.getSQL, Seq(Argument.StringArg(name)), mapPostRow))
-        posts <- ZIO.attempt(PostRow.toPosts(rows))
+        sqlFragment <- ZIO.attempt {
+          sql"""
+             with recursive
+             post_ids as (
+                 select wp_posts.id from wp_posts where wp_posts.post_name = $name
+             ),
+             $createDescendantOrSelfPostIdsCte,
+             posts as ($baseSelectQuery)
+             select * from posts where ID in (select post_id from post_tree)
+           """
+        }
+        posts <- transaction
+          .apply {
+            selectAll(sqlFragment.as[PostRow]).mapAttempt(rows => PostRow.toPosts(rows.toSeq))
+          }
+          .provideLayer(cpLayer)
       } yield posts
 
+    // Return top-level row(s) only, be it with their descendants
     filteredPosts.map(_.find(_.postName == name))
   end findPostByName
 
@@ -236,9 +191,6 @@ final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo:
   private def emptyToNone(v: String): Option[String] = if v.isEmpty then None else Some(v)
 
 object PostRepoImpl:
-
-  val layer: ZLayer[ZConnectionPool, Throwable, PostRepo] =
-    ZLayer.fromFunction(cp => PostRepoImpl(cp))
 
   private case class PostRow(
       postId: Long,
