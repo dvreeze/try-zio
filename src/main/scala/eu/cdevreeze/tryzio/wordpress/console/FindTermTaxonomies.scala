@@ -16,12 +16,8 @@
 
 package eu.cdevreeze.tryzio.wordpress.console
 
-import com.zaxxer.hikari.HikariConfig
-import com.zaxxer.hikari.HikariDataSource
-import eu.cdevreeze.tryzio.jdbc.*
 import eu.cdevreeze.tryzio.wordpress.repo.TermRepo
 import eu.cdevreeze.tryzio.wordpress.repo.TermRepoImpl
-import javax.sql.DataSource
 import zio.*
 import zio.Console.*
 import zio.json.*
@@ -34,24 +30,12 @@ import zio.json.*
  */
 object FindTermTaxonomies extends ZIOAppDefault:
 
-  private val dsLayer: TaskLayer[DataSource] = ZLayer.fromZIO(getDataSource())
-
   def run: Task[Unit] =
     for {
-      repo <- ZIO
-        .service[TermRepo]
-        .provideLayer((dsLayer >>> ZConnectionPoolFromDataSource.layer) >>> TermRepoImpl.layer)
+      repo <- ZIO.attempt(TermRepoImpl(ConnectionPools.liveLayer))
       results <- repo.findAllTermTaxonomies()
       jsonResults <- ZIO.attempt(results.map(_.toJsonPretty))
       _ <- printLine(jsonResults)
     } yield ()
-
-  // See https://github.com/brettwooldridge/HikariCP for connection pooling
-
-  private def getDataSource(): Task[DataSource] =
-    ZIO.attempt {
-      val config = new HikariConfig("/hikari-wp.properties") // Also tries the classpath to read from
-      new HikariDataSource(config)
-    }
 
 end FindTermTaxonomies
