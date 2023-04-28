@@ -38,7 +38,7 @@ import zio.json.*
  */
 final class PostRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) extends PostRepo:
 
-  // Common Table Expression for the unfiltered Post rows
+  // Common Table Expression body for the unfiltered Post rows
   private def baseSelectQuery: SqlFragment =
     sql"""select
             wp_posts.ID, wp_posts.post_date_gmt, wp_posts.post_content,
