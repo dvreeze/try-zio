@@ -24,29 +24,8 @@ import scala.util.Try
 import scala.util.Using
 import scala.util.chaining.*
 
-import eu.cdevreeze.tryzio.jooq.generated.wordpress.Tables.*
-import eu.cdevreeze.tryzio.wordpress.model.CommentStatus
-import eu.cdevreeze.tryzio.wordpress.model.Post
-import eu.cdevreeze.tryzio.wordpress.model.PostStatus
-import eu.cdevreeze.tryzio.wordpress.model.PostType
+import eu.cdevreeze.tryzio.wordpress.model.*
 import eu.cdevreeze.tryzio.wordpress.repo.PostRepoImpl.PostRow
-import org.jooq.CommonTableExpression
-import org.jooq.DSLContext
-import org.jooq.Query
-import org.jooq.Record1
-import org.jooq.SQLDialect
-import org.jooq.WithStep
-import org.jooq.impl.DSL
-import org.jooq.impl.DSL.`val`
-import org.jooq.impl.DSL.cast
-import org.jooq.impl.DSL.coalesce
-import org.jooq.impl.DSL.field
-import org.jooq.impl.DSL.inline
-import org.jooq.impl.DSL.jsonObjectAgg
-import org.jooq.impl.DSL.name
-import org.jooq.impl.DSL.table
-import org.jooq.impl.SQLDataType.*
-import org.jooq.types.ULong
 import zio.*
 import zio.jdbc.*
 import zio.json.*
@@ -158,7 +137,7 @@ final class PostRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) e
           .provideLayer(cpLayer)
       } yield posts
 
-    // Return top-level post(s) only, be it with their descendants
+    // Return top-level post(s) only, be it with their descendants as children, grandchildren etc.
     filteredPosts.map(_.find(_.postId == postId))
   end findPost
 
@@ -183,7 +162,7 @@ final class PostRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) e
           .provideLayer(cpLayer)
       } yield posts
 
-    // Return top-level row(s) only, be it with their descendants
+    // Return top-level post(s) only, be it with their descendants as children, grandchildren etc.
     filteredPosts.map(_.find(_.postName == name))
   end findPostByName
 
