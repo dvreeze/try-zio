@@ -35,7 +35,6 @@ val zioHttpVersion = "0.0.5"
 val zioConfigVersion = "4.0.0-RC14"
 val zioJdbcVersion = "0.0.2"
 val testContainersVersion = "1.18.0"
-val jooqVersion = "3.16.18" // Works with Java 11
 
 ThisBuild / libraryDependencies += "dev.zio" %% "zio" % zioVersion
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-streams" % zioVersion
@@ -61,19 +60,9 @@ ThisBuild / libraryDependencies += "org.testcontainers" % "mysql" % testContaine
 ThisBuild / libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.33"
 ThisBuild / libraryDependencies += "com.zaxxer" % "HikariCP" % "5.0.1" // requires Java 11+
 
-ThisBuild / libraryDependencies += "org.jooq" % "jooq" % jooqVersion
-ThisBuild / libraryDependencies += "org.jooq" % "jooq-meta" % jooqVersion
-ThisBuild / libraryDependencies += "org.jooq" % "jooq-codegen" % jooqVersion
-// Used by JOOQ
-ThisBuild / libraryDependencies += "org.jetbrains" % "annotations" % "24.0.1"
-
 ThisBuild / libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.4.7"
 
 ThisBuild / testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
-
-Compile / sourceGenerators += Def.task {
-  JooqCodegen.generateJavaFiles((Compile / sourceManaged).value)
-}.taskValue
 
 lazy val root = project.in(file("."))
   .settings(
