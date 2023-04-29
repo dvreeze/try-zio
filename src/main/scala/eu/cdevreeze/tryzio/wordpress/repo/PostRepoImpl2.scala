@@ -37,7 +37,7 @@ import zio.json.*
  * @author
  *   Chris de Vreeze
  */
-final class PostRepoImpl2(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) extends PostRepo:
+final class PostRepoImpl2(val cp: ZConnectionPool) extends PostRepo.Api:
 
   // Common Table Expression body for the unfiltered Post rows
   private def baseSelectQuery: SqlFragment =
@@ -107,7 +107,7 @@ final class PostRepoImpl2(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) 
         .apply {
           selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
         }
-        .provideLayer(cpLayer)
+        .provideEnvironment(ZEnvironment(cp))
       filteredPosts <- ZIO.filter(posts)(p)
     } yield filteredPosts
 
@@ -133,7 +133,7 @@ final class PostRepoImpl2(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) 
           .apply {
             selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
           }
-          .provideLayer(cpLayer)
+          .provideEnvironment(ZEnvironment(cp))
       } yield posts
 
     // Return top-level post(s) only, be it with their descendants as children, grandchildren etc.
@@ -158,7 +158,7 @@ final class PostRepoImpl2(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) 
           .apply {
             selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
           }
-          .provideLayer(cpLayer)
+          .provideEnvironment(ZEnvironment(cp))
       } yield posts
 
     // Return top-level post(s) only, be it with their descendants as children, grandchildren etc.

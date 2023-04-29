@@ -30,15 +30,17 @@ import zio.json.*
  */
 object FindPostByName2 extends ZIOAppDefault:
 
-  def run: Task[Unit] =
+  val program: ZIO[PostRepo.Api, Throwable, Unit] =
     for {
       _ <- printLine("Enter a post name:")
       postName <- readLine
       _ <- printLine(s"Finding post (if any) for post name '$postName':")
-      repo <- ZIO.attempt(PostRepoImpl2(ConnectionPools.liveLayer))
-      resultOpt <- repo.findPostByName(postName)
+      resultOpt <- PostRepo.findPostByName(postName)
       jsonResultOpt <- ZIO.attempt(resultOpt.map(_.toJsonPretty))
       _ <- printLine(jsonResultOpt)
     } yield ()
+
+  def run: Task[Unit] =
+    program.provide(ConnectionPools.liveLayer, ZLayer.fromFunction(PostRepoImpl2(_)))
 
 end FindPostByName2

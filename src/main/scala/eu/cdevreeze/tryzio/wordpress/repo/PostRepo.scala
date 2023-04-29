@@ -17,7 +17,7 @@
 package eu.cdevreeze.tryzio.wordpress.repo
 
 import eu.cdevreeze.tryzio.wordpress.model.Post
-import zio.Task
+import zio.*
 
 /**
  * Repository of posts.
@@ -25,14 +25,34 @@ import zio.Task
  * @author
  *   Chris de Vreeze
  */
-trait PostRepo:
+trait PostRepo[-R]:
 
-  def filterPosts(p: Post => Task[Boolean]): Task[Seq[Post]]
+  def filterPosts(p: Post => Task[Boolean]): RIO[R, Seq[Post]]
 
-  def filterPostsReturningNoContent(p: Post => Task[Boolean]): Task[Seq[Post]]
+  def filterPostsReturningNoContent(p: Post => Task[Boolean]): RIO[R, Seq[Post]]
 
-  def findPost(postId: Long): Task[Option[Post]]
+  def findPost(postId: Long): RIO[R, Option[Post]]
 
-  def findPostByName(name: String): Task[Option[Post]]
+  def findPostByName(name: String): RIO[R, Option[Post]]
+
+object PostRepo extends PostRepo.AccessorApi:
+
+  // See https://zio.dev/reference/service-pattern/, taken one step further
+
+  type Api = PostRepo[Any]
+
+  type AccessorApi = PostRepo[PostRepo.Api]
+
+  def filterPosts(p: Post => Task[Boolean]): RIO[Api, Seq[Post]] =
+    ZIO.serviceWithZIO[Api](_.filterPosts(p))
+
+  def filterPostsReturningNoContent(p: Post => Task[Boolean]): RIO[Api, Seq[Post]] =
+    ZIO.serviceWithZIO[Api](_.filterPostsReturningNoContent(p))
+
+  def findPost(postId: Long): RIO[Api, Option[Post]] =
+    ZIO.serviceWithZIO[Api](_.findPost(postId))
+
+  def findPostByName(name: String): RIO[Api, Option[Post]] =
+    ZIO.serviceWithZIO[Api](_.findPostByName(name))
 
 end PostRepo

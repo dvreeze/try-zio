@@ -30,12 +30,14 @@ import zio.json.*
  */
 object FindTermTaxonomies extends ZIOAppDefault:
 
-  def run: Task[Unit] =
+  val program: ZIO[TermRepo.Api, Throwable, Unit] =
     for {
-      repo <- ZIO.attempt(TermRepoImpl(ConnectionPools.liveLayer))
-      results <- repo.findAllTermTaxonomies()
+      results <- TermRepo.findAllTermTaxonomies()
       jsonResults <- ZIO.attempt(results.map(_.toJsonPretty))
       _ <- printLine(jsonResults)
     } yield ()
+
+  def run: Task[Unit] =
+    program.provide(ConnectionPools.liveLayer, ZLayer.fromFunction(TermRepoImpl(_)))
 
 end FindTermTaxonomies

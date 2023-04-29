@@ -24,7 +24,7 @@ import zio.jdbc.*
 import zio.json.*
 
 /**
- * Program finding the "about" post in the Wordpress database. It uses the zio-jdbc library.
+ * Very simple example program finding the "about" post in the Wordpress database. It uses the zio-jdbc library.
  *
  * @author
  *   Chris de Vreeze

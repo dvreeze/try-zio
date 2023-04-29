@@ -30,12 +30,14 @@ import zio.json.*
  */
 object FindPosts extends ZIOAppDefault:
 
-  def run: Task[Unit] =
+  val program: ZIO[PostRepo.Api, Throwable, Unit] =
     for {
-      repo <- ZIO.attempt(PostRepoImpl(ConnectionPools.liveLayer))
-      results <- repo.filterPosts(_ => ZIO.succeed(true))
+      results <- PostRepo.filterPosts(_ => ZIO.succeed(true))
       jsonResults <- ZIO.attempt(results.map(_.toJsonPretty))
       _ <- printLine(jsonResults)
     } yield ()
+
+  def run: Task[Unit] =
+    program.provide(ConnectionPools.liveLayer, ZLayer.fromFunction(PostRepoImpl(_)))
 
 end FindPosts

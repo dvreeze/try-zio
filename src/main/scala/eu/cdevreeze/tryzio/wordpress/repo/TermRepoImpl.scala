@@ -33,7 +33,7 @@ import zio.jdbc.*
  * @author
  *   Chris de Vreeze
  */
-final class TermRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) extends TermRepo:
+final class TermRepoImpl(val cp: ZConnectionPool) extends TermRepo.Api:
 
   private def baseTermSql: SqlFragment =
     sql"select wp_terms.term_id, wp_terms.name, wp_terms.slug, wp_terms.term_group from wp_terms"
@@ -92,7 +92,7 @@ final class TermRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) e
         .apply {
           selectAll(sqlFragment.as[TermRow]).mapAttempt(_.map(_.toTerm))
         }
-        .provideLayer(cpLayer)
+        .provideEnvironment(ZEnvironment(cp))
     } yield terms
 
   def findTerm(termId: Long): Task[Option[Term]] =
@@ -104,7 +104,7 @@ final class TermRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) e
         .apply {
           selectOne(sqlFragment.as[TermRow]).mapAttempt(_.map(_.toTerm))
         }
-        .provideLayer(cpLayer)
+        .provideEnvironment(ZEnvironment(cp))
     } yield termOption
 
   def findTermByName(name: String): Task[Option[Term]] =
@@ -116,7 +116,7 @@ final class TermRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) e
         .apply {
           selectOne(sqlFragment.as[TermRow]).mapAttempt(_.map(_.toTerm))
         }
-        .provideLayer(cpLayer)
+        .provideEnvironment(ZEnvironment(cp))
     } yield termOption
 
   def findAllTermTaxonomies(): Task[Seq[TermTaxonomy]] =
@@ -128,7 +128,7 @@ final class TermRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) e
         .apply {
           selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
         }
-        .provideLayer(cpLayer)
+        .provideEnvironment(ZEnvironment(cp))
     } yield termTaxos
 
   def findTermTaxonomy(termTaxoId: Long): Task[Option[TermTaxonomy]] =
@@ -149,7 +149,7 @@ final class TermRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) e
           .apply {
             selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
           }
-          .provideLayer(cpLayer)
+          .provideEnvironment(ZEnvironment(cp))
       } yield termTaxos
 
     // Return top-level term-taxonomies only, be it with their descendants as children, grandchildren etc.
@@ -174,7 +174,7 @@ final class TermRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) e
           .apply {
             selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
           }
-          .provideLayer(cpLayer)
+          .provideEnvironment(ZEnvironment(cp))
       } yield termTaxos
 
     // Return top-level term-taxonomies only, be it with their descendants as children, grandchildren etc.
@@ -202,7 +202,7 @@ final class TermRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) e
           .apply {
             selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
           }
-          .provideLayer(cpLayer)
+          .provideEnvironment(ZEnvironment(cp))
       } yield termTaxos
 
     // Return top-level term-taxonomies only, be it with their descendants as children, grandchildren etc.
