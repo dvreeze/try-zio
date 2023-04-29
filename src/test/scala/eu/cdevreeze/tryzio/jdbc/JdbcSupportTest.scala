@@ -16,27 +16,17 @@
 
 package eu.cdevreeze.tryzio.jdbc
 
-import java.sql.Connection
-import java.sql.PreparedStatement
+import java.io.File
+import java.sql.ResultSet
 
 import scala.util.Using
 import scala.util.chaining.*
 
-import com.zaxxer.hikari.HikariConfig
-import com.zaxxer.hikari.HikariDataSource
-import eu.cdevreeze.tryzio.jdbc.ConnectionWork.*
-import eu.cdevreeze.tryzio.jdbc.JdbcSupport.Argument.*
-import eu.cdevreeze.tryzio.jooq.generated.mysql.Tables.*
-import javax.sql.DataSource
-import org.jooq.*
-import org.jooq.impl.DSL
-import org.jooq.impl.DSL.`val`
-import org.jooq.impl.DSL.field
-import org.jooq.impl.DSL.primaryKey
-import org.jooq.impl.DSL.table
-import org.jooq.impl.SQLDataType.*
 import zio.*
 import zio.Console.printLine
+import zio.config.*
+import zio.config.typesafe.*
+import zio.jdbc.*
 import zio.test.Assertion.*
 import zio.test.ZIOSpecDefault
 import zio.test.assert
@@ -56,20 +46,17 @@ import zio.test.assert
  */
 object JdbcSupportTest extends ZIOSpecDefault:
 
-  import JdbcSupport.*
-
-  private val dsLayer: TaskLayer[DataSource] = ZLayer.fromZIO(getDataSource())
-
-  private val getCp: Task[ZConnectionPool] =
-    ZIO
-      .service[ZConnectionPool]
-      .provideLayer(dsLayer >>> ZConnectionPoolFromDataSource.layer)
-
-  private def makeDsl(): DSLContext = DSL.using(SQLDialect.MYSQL)
-
   private final case class User(host: String, user: String)
 
   private final case class Timezone(id: Int, name: String, useLeapSeconds: Boolean)
+
+  private given JdbcDecoder[User] = { (rs: ResultSet) =>
+    User(rs.getString(1), rs.getString(2))
+  }
+
+  private given JdbcDecoder[Timezone] = { (rs: ResultSet) =>
+    Timezone(rs.getInt(1), rs.getString(2), rs.getString(3) == "Y")
+  }
 
   def spec = suite("ZIO-based JDBC Support test") {
     // Probably wasteful to start connection pool on each test.
@@ -77,36 +64,19 @@ object JdbcSupportTest extends ZIOSpecDefault:
     List(
       test("Querying for users succeeds") {
         for {
-          cp <- getCp
-          result <- getUsers(cp)
-            .tap(res => printLine(s"Users: $res"))
-        } yield assert(result.map(_.host).distinct)(equalTo(Seq("%", "localhost")))
-      },
-      test("Querying for users the hard way succeeds") {
-        for {
-          cp <- getCp
-          result <- getUsersTheHardWay(cp)
-            .tap(res => printLine(s"Users: $res"))
-        } yield assert(result.map(_.host).distinct)(equalTo(Seq("%", "localhost")))
-      },
-      test("Querying for users the verbose way succeeds") {
-        for {
-          cp <- getCp
-          result <- getUsersTheVerboseWay(cp)
+          result <- getUsers()
             .tap(res => printLine(s"Users: $res"))
         } yield assert(result.map(_.host).distinct)(equalTo(Seq("%", "localhost")))
       },
       test("Querying multiple times simultaneously for users succeeds") {
         for {
-          cp <- getCp
-          multipleResults <- getUsers(cp)
+          multipleResults <- getUsers()
             .pipe(getDs => ZIO.foreachPar(0.until(5))(_ => getDs))
         } yield assert(multipleResults.flatten.map(_.host).distinct)(equalTo(Seq("%", "localhost")))
       },
       test("Querying for timezones succeeds") {
         for {
-          cp <- getCp
-          result <- getSomeTimezones("Europe/%", cp)
+          result <- getSomeTimezones("Europe/%")
             .tap(res => printLine(s"Timezones: $res"))
         } yield {
           assert(result.map(_.name))(contains("Europe/Lisbon")) &&
@@ -117,8 +87,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
       },
       test("Querying multiple times simultaneously for timezones succeeds") {
         for {
-          cp <- getCp
-          multipleResults <- getSomeTimezones("Europe/%", cp)
+          multipleResults <- getSomeTimezones("Europe/%")
             .pipe(getDs => ZIO.foreachPar(0.until(5))(_ => getDs))
         } yield {
           assert(multipleResults.flatten.map(_.name))(contains("Europe/Lisbon")) &&
@@ -126,157 +95,88 @@ object JdbcSupportTest extends ZIOSpecDefault:
           assert(multipleResults.flatten.map(_.name))(contains("Europe/Moscow")) &&
           assert(multipleResults.flatten.map(_.name))(contains("Europe/Amsterdam"))
         }
-      },
-      test("Inserting users into the second user table and querying them succeeds") {
-        for {
-          cp <- getCp
-          _ <- createSecondUserTable(cp)
-          _ <- copyUsers(cp)
-          users <- getUsersFromSecondUserTable(cp)
-          _ <- dropSecondUserTable(cp)
-        } yield {
-          assert(users)(contains(User("localhost", "root"))) &&
-          assert(users)(contains(User("%", "root")))
-        }
       }
     )
   }
 
-  private def getUsers(cp: ZConnectionPool): Task[Seq[User]] =
+  private def getUsers(): Task[Seq[User]] =
     for {
-      dsl <- ZIO.attempt(makeDsl())
-      sqlQuery <- ZIO.attempt(dsl.select(USER.HOST, USER.USER_).from(USER))
-      result <- cp.txReadCommitted.run {
-        queryForSeq(sqlQuery.getSQL, Seq.empty, { (rs, _) => User(rs.getString(1), rs.getString(2)) })
+      sqlQuery <- ZIO.attempt {
+        sql"select host, user from user"
       }
+      result <- transaction
+        .apply {
+          selectAll(sqlQuery.as[User]).map(_.toSeq)
+        }
+        .provideLayer(ConnectionPools.testLayer)
     } yield result
   end getUsers
 
-  private def getUsersTheHardWay(cp: ZConnectionPool): Task[Seq[User]] =
-    for {
-      dsl <- ZIO.attempt(makeDsl())
-      sqlQuery <- ZIO.attempt(dsl.select(USER.HOST, USER.USER_).from(USER))
-      result <- cp.txReadCommitted.run {
-        query(
-          sqlQuery.getSQL,
-          Seq.empty,
-          { rs => Iterator.from(1).takeWhile(_ => rs.next).map(_ => User(rs.getString(1), rs.getString(2))).toSeq }
-        )
-      }
-    } yield result
-  end getUsersTheHardWay
-
-  private def getUsersTheVerboseWay(cp: ZConnectionPool): Task[Seq[User]] =
-    for {
-      dsl <- ZIO.attempt(makeDsl())
-      sqlQuery <- ZIO.attempt(dsl.select(USER.HOST, USER.USER_).from(USER))
-      result <- cp.txReadCommitted.run {
-        ZIO.service[ZConnection].flatMap { conn =>
-          ZIO.attempt {
-            Using.resource(conn.connection.prepareStatement(sqlQuery.getSQL)) { ps =>
-              Using.resource(ps.executeQuery()) { rs =>
-                Iterator.from(1).takeWhile(_ => rs.next).map(_ => User(rs.getString(1), rs.getString(2))).toSeq
-              }
-            }
-          }
-        }
-      }
-    } yield result
-  end getUsersTheVerboseWay
-
-  private def getSomeTimezones(timezoneLikeString: String, cp: ZConnectionPool): Task[Seq[Timezone]] =
-    val sqlQueryTask: Task[Query] = ZIO.attempt {
-      val dsl = makeDsl()
-      dsl
-        .select(TIME_ZONE.TIME_ZONE_ID, TIME_ZONE_NAME.NAME, TIME_ZONE.USE_LEAP_SECONDS)
-        .from(TIME_ZONE)
-        .join(TIME_ZONE_NAME)
-        .on(TIME_ZONE.TIME_ZONE_ID.equal(TIME_ZONE_NAME.TIME_ZONE_ID))
-        .where(TIME_ZONE_NAME.NAME.like(`val`("dummyNameArg")))
+  private def getSomeTimezones(timezoneLikeString: String): Task[Seq[Timezone]] =
+    val sqlQueryTask: Task[SqlFragment] = ZIO.attempt {
+      sql"""
+           select time_zone.time_zone_id, time_zone_name.name, time_zone.use_leap_seconds
+             from time_zone
+             join time_zone_name on time_zone.time_zone_id = time_zone_name.time_zone_id
+            where time_zone_name.name like $timezoneLikeString
+         """
     }
 
     for {
       sqlQuery <- sqlQueryTask
-      result <- cp.txReadCommitted.run {
-        queryForSeq(
-          sqlQuery.getSQL,
-          Seq(StringArg(timezoneLikeString)),
-          { (rs, _) =>
-            Timezone(rs.getInt(1), rs.getString(2), rs.getString(3).pipe(_ == "Y"))
-          }
-        )
-      }
+      result <- transaction
+        .apply {
+          selectAll(sqlQuery.as[Timezone]).map(_.toSeq)
+        }
+        .provideLayer(ConnectionPools.testLayer)
     } yield result
   end getSomeTimezones
 
-  private def createSecondUserTable(cp: ZConnectionPool): Task[Unit] =
-    val sqlStatTask: Task[CreateTableConstraintStep] = ZIO.attempt {
-      val dsl = makeDsl()
-      dsl
-        .createTableIfNotExists(table("user_summary"))
-        .column(field("name", VARCHAR), VARCHAR(255).notNull)
-        .column(field("host", VARCHAR), VARCHAR(255).notNull)
-        .constraint(primaryKey(field("name", VARCHAR), field("host", VARCHAR)))
-    }
+  object ConnectionPools:
 
-    for {
-      sqlStat <- sqlStatTask
-      _ <- cp.txReadCommitted.run {
-        update(sqlStat.getSQL, Seq.empty)
+    final case class DbConfig(
+        host: String,
+        port: Int,
+        database: String,
+        user: String,
+        password: String,
+        otherProperties: Map[String, String]
+    )
+
+    object DbConfig:
+      val configuration: Config[DbConfig] =
+        Config
+          .string("host")
+          .zip(Config.int("port"))
+          .zip(Config.string("database"))
+          .zip(Config.string("user"))
+          .zip(Config.string("password"))
+          .zip(Config.table("otherProperties", Config.string))
+          .to[DbConfig]
+
+    val zioPoolConfigLayer: ULayer[ZConnectionPoolConfig] =
+      ZLayer.succeed(ZConnectionPoolConfig.default)
+
+    private val cpSettings: Task[DbConfig] =
+      for {
+        configProvider <- ZIO.attempt {
+          ConfigProvider.fromHoconFile(new File(classOf[ZIO[?, ?, ?]].getResource("/db-test.hocon").toURI))
+        }
+        settings <- configProvider.load(DbConfig.configuration)
+      } yield settings
+
+    val connectionPoolLayer: ZLayer[ZConnectionPoolConfig, Throwable, ZConnectionPool] =
+      ZLayer.fromZIO(cpSettings).flatMap { cpConfig =>
+        ZConnectionPool.mysql(
+          host = cpConfig.get.host,
+          port = cpConfig.get.port,
+          database = cpConfig.get.database,
+          props = Map("user" -> cpConfig.get.user, "password" -> cpConfig.get.password) ++ cpConfig.get.otherProperties
+        )
       }
-    } yield ()
-  end createSecondUserTable
 
-  private def copyUsers(cp: ZConnectionPool): Task[Unit] =
-    def sql1Task(dsl: DSLContext): Task[Delete[_]] =
-      ZIO.attempt { dsl.deleteFrom(table("user_summary")) }
-    def sql2Task(dsl: DSLContext): Task[Insert[_]] =
-      ZIO.attempt {
-        dsl
-          .insertInto(table("user_summary"))
-          .columns(field("name", VARCHAR), field("host", VARCHAR))
-          .select(dsl.select(field("user", VARCHAR), field("host", VARCHAR)).from(table("user")))
-      }
+    val testLayer: ZLayer[Any, Throwable, ZConnectionPool] = zioPoolConfigLayer >>> connectionPoolLayer
 
-    for {
-      dsl <- ZIO.attempt(makeDsl())
-      sql1 <- sql1Task(dsl)
-      sql2 <- sql2Task(dsl)
-      _ <- cp.txReadCommitted.run {
-        update(sql1.getSQL, Seq.empty)
-          .flatMap(_ => update(sql2.getSQL, Seq.empty))
-      }
-    } yield ()
-  end copyUsers
-
-  private def getUsersFromSecondUserTable(cp: ZConnectionPool): Task[Seq[User]] =
-    for {
-      dsl <- ZIO.attempt(makeDsl())
-      sqlQuery <- ZIO.attempt {
-        dsl.select(field("host", VARCHAR), field("name", VARCHAR)).from(table("user_summary"))
-      }
-      result <- cp.txReadCommitted.run {
-        queryForSeq(sqlQuery.getSQL, Seq.empty, { (rs, _) => User(rs.getString(1), rs.getString(2)) })
-      }
-    } yield result
-  end getUsersFromSecondUserTable
-
-  private def dropSecondUserTable(cp: ZConnectionPool): Task[Unit] =
-    for {
-      dsl <- ZIO.attempt(makeDsl())
-      sqlStat <- ZIO.attempt(dsl.dropTable(table("user_summary")))
-      _ <- cp.txReadCommitted.run {
-        update(sqlStat.getSQL, Seq.empty)
-      }
-    } yield ()
-  end dropSecondUserTable
-
-  // See https://github.com/brettwooldridge/HikariCP for connection pooling
-
-  private def getDataSource(): Task[DataSource] =
-    ZIO.attempt {
-      val config = new HikariConfig("/hikari.properties") // Also tries the classpath to read from
-      new HikariDataSource(config)
-    }
+  end ConnectionPools
 
 end JdbcSupportTest
