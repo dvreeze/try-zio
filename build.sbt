@@ -38,6 +38,7 @@ val testContainersVersion = "1.18.0"
 
 ThisBuild / libraryDependencies += "dev.zio" %% "zio" % zioVersion
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-streams" % zioVersion
+
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-test" % zioVersion % Test
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-test-sbt" % zioVersion % Test
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-test-magnolia" % zioVersion % Test
@@ -47,9 +48,7 @@ ThisBuild / libraryDependencies += "dev.zio" %% "zio-config" % zioConfigVersion
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-config-typesafe" % zioConfigVersion
 
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-jdbc" % zioJdbcVersion
-
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-json" % zioJsonVersion
-
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-http" % zioHttpVersion
 
 ThisBuild / libraryDependencies += "javax.servlet" % "servlet-api" % "3.0-alpha-1" % Provided

@@ -55,7 +55,6 @@ object FindPalindromes extends ZIOAppDefault:
       val words: ZStream[Any, Throwable, String] = ZStream.fromIterator(src.getLines())
       val palindromes = words.filterZIO(isPalindrome).filter(_.lengthIs >= 2)
       palindromes.runCollect
-        .flatMap(chunk => ZIO.attempt(chunk.toSeq))
         .flatMap(words => ZIO.attempt(words.sortBy(word => (-word.length, word))))
     }
   end run

@@ -90,7 +90,7 @@ final class TermRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) e
       }
       terms <- transaction
         .apply {
-          selectAll(sqlFragment.as[TermRow]).mapAttempt(rows => rows.toSeq.map(_.toTerm))
+          selectAll(sqlFragment.as[TermRow]).mapAttempt(_.map(_.toTerm))
         }
         .provideLayer(cpLayer)
     } yield terms
@@ -126,7 +126,7 @@ final class TermRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) e
       }
       termTaxos <- transaction
         .apply {
-          selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(rows => TermTaxonomyRow.toTermTaxonomies(rows.toSeq))
+          selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
         }
         .provideLayer(cpLayer)
     } yield termTaxos
@@ -147,7 +147,7 @@ final class TermRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) e
         }
         termTaxos <- transaction
           .apply {
-            selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(rows => TermTaxonomyRow.toTermTaxonomies(rows.toSeq))
+            selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
           }
           .provideLayer(cpLayer)
       } yield termTaxos
@@ -172,7 +172,7 @@ final class TermRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) e
         }
         termTaxos <- transaction
           .apply {
-            selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(rows => TermTaxonomyRow.toTermTaxonomies(rows.toSeq))
+            selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
           }
           .provideLayer(cpLayer)
       } yield termTaxos
@@ -200,7 +200,7 @@ final class TermRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) e
         }
         termTaxos <- transaction
           .apply {
-            selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(rows => TermTaxonomyRow.toTermTaxonomies(rows.toSeq))
+            selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
           }
           .provideLayer(cpLayer)
       } yield termTaxos

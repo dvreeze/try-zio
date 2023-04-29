@@ -106,7 +106,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
       }
       result <- transaction
         .apply {
-          selectAll(sqlQuery.as[User]).map(_.toSeq)
+          selectAll(sqlQuery.as[User])
         }
         .provideLayer(ConnectionPools.testLayer)
     } yield result
@@ -126,7 +126,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
       sqlQuery <- sqlQueryTask
       result <- transaction
         .apply {
-          selectAll(sqlQuery.as[Timezone]).map(_.toSeq)
+          selectAll(sqlQuery.as[Timezone])
         }
         .provideLayer(ConnectionPools.testLayer)
     } yield result

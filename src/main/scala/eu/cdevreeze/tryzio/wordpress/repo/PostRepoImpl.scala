@@ -106,7 +106,7 @@ final class PostRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) e
       }
       posts <- transaction
         .apply {
-          selectAll(sqlFragment.as[PostRow]).mapAttempt(rows => PostRow.toPosts(rows.toSeq))
+          selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
         }
         .provideLayer(cpLayer)
       filteredPosts <- ZIO.filter(posts)(p)
@@ -132,7 +132,7 @@ final class PostRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) e
         }
         posts <- transaction
           .apply {
-            selectAll(sqlFragment.as[PostRow]).mapAttempt(rows => PostRow.toPosts(rows.toSeq))
+            selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
           }
           .provideLayer(cpLayer)
       } yield posts
@@ -157,7 +157,7 @@ final class PostRepoImpl(val cpLayer: ZLayer[Any, Throwable, ZConnectionPool]) e
         }
         posts <- transaction
           .apply {
-            selectAll(sqlFragment.as[PostRow]).mapAttempt(rows => PostRow.toPosts(rows.toSeq))
+            selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
           }
           .provideLayer(cpLayer)
       } yield posts
