@@ -88,10 +88,9 @@ final class TermRepoImpl(val cp: ZConnectionPool) extends TermRepo.Api:
       sqlFragment <- ZIO.attempt {
         sql"with terms as ($baseTermSql) select * from terms"
       }
-      terms <- transaction
-        .apply {
-          selectAll(sqlFragment.as[TermRow]).mapAttempt(_.map(_.toTerm))
-        }
+      terms <- transaction {
+        selectAll(sqlFragment.as[TermRow]).mapAttempt(_.map(_.toTerm))
+      }
         .provideEnvironment(ZEnvironment(cp))
     } yield terms
 
@@ -100,10 +99,9 @@ final class TermRepoImpl(val cp: ZConnectionPool) extends TermRepo.Api:
       sqlFragment <- ZIO.attempt {
         sql"with terms as ($baseTermSql) select * from terms where term_id = $termId"
       }
-      termOption <- transaction
-        .apply {
-          selectOne(sqlFragment.as[TermRow]).mapAttempt(_.map(_.toTerm))
-        }
+      termOption <- transaction {
+        selectOne(sqlFragment.as[TermRow]).mapAttempt(_.map(_.toTerm))
+      }
         .provideEnvironment(ZEnvironment(cp))
     } yield termOption
 
@@ -112,10 +110,9 @@ final class TermRepoImpl(val cp: ZConnectionPool) extends TermRepo.Api:
       sqlFragment <- ZIO.attempt {
         sql"with terms as ($baseTermSql) select * from terms where name = $name"
       }
-      termOption <- transaction
-        .apply {
-          selectOne(sqlFragment.as[TermRow]).mapAttempt(_.map(_.toTerm))
-        }
+      termOption <- transaction {
+        selectOne(sqlFragment.as[TermRow]).mapAttempt(_.map(_.toTerm))
+      }
         .provideEnvironment(ZEnvironment(cp))
     } yield termOption
 
@@ -124,10 +121,9 @@ final class TermRepoImpl(val cp: ZConnectionPool) extends TermRepo.Api:
       sqlFragment <- ZIO.attempt {
         sql"with term_taxos as ($baseTermTaxonomySql) select * from term_taxos"
       }
-      termTaxos <- transaction
-        .apply {
-          selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
-        }
+      termTaxos <- transaction {
+        selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
+      }
         .provideEnvironment(ZEnvironment(cp))
     } yield termTaxos
 
@@ -145,10 +141,9 @@ final class TermRepoImpl(val cp: ZConnectionPool) extends TermRepo.Api:
              select * from term_taxos where term_taxonomy_id in (select tt_id from tt_tree)
            """
         }
-        termTaxos <- transaction
-          .apply {
-            selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
-          }
+        termTaxos <- transaction {
+          selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
+        }
           .provideEnvironment(ZEnvironment(cp))
       } yield termTaxos
 
@@ -170,10 +165,9 @@ final class TermRepoImpl(val cp: ZConnectionPool) extends TermRepo.Api:
              select * from term_taxos where term_taxonomy_id in (select tt_id from tt_tree)
            """
         }
-        termTaxos <- transaction
-          .apply {
-            selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
-          }
+        termTaxos <- transaction {
+          selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
+        }
           .provideEnvironment(ZEnvironment(cp))
       } yield termTaxos
 
@@ -198,10 +192,9 @@ final class TermRepoImpl(val cp: ZConnectionPool) extends TermRepo.Api:
              select * from term_taxos where term_taxonomy_id in (select tt_id from tt_tree)
            """
         }
-        termTaxos <- transaction
-          .apply {
-            selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
-          }
+        termTaxos <- transaction {
+          selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
+        }
           .provideEnvironment(ZEnvironment(cp))
       } yield termTaxos
 

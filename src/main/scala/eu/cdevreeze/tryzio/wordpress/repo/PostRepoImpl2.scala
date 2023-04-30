@@ -103,10 +103,9 @@ final class PostRepoImpl2(val cp: ZConnectionPool) extends PostRepo.Api:
       sqlFragment <- ZIO.attempt {
         sql"with posts as ($baseSelectQuery) select * from posts"
       }
-      posts <- transaction
-        .apply {
-          selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
-        }
+      posts <- transaction {
+        selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
+      }
         .provideEnvironment(ZEnvironment(cp))
       filteredPosts <- ZIO.filter(posts)(p)
     } yield filteredPosts
@@ -129,10 +128,9 @@ final class PostRepoImpl2(val cp: ZConnectionPool) extends PostRepo.Api:
              select * from posts where ID in (select post_id from post_tree)
            """
         }
-        posts <- transaction
-          .apply {
-            selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
-          }
+        posts <- transaction {
+          selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
+        }
           .provideEnvironment(ZEnvironment(cp))
       } yield posts
 
@@ -154,10 +152,9 @@ final class PostRepoImpl2(val cp: ZConnectionPool) extends PostRepo.Api:
              select * from posts where ID in (select post_id from post_tree)
            """
         }
-        posts <- transaction
-          .apply {
-            selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
-          }
+        posts <- transaction {
+          selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
+        }
           .provideEnvironment(ZEnvironment(cp))
       } yield posts
 

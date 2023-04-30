@@ -104,10 +104,9 @@ object JdbcSupportTest extends ZIOSpecDefault:
       sqlQuery <- ZIO.attempt {
         sql"select host, user from user"
       }
-      result <- transaction
-        .apply {
-          selectAll(sqlQuery.as[User])
-        }
+      result <- transaction {
+        selectAll(sqlQuery.as[User])
+      }
         .provideLayer(ConnectionPools.testLayer)
     } yield result
   end getUsers
@@ -124,10 +123,9 @@ object JdbcSupportTest extends ZIOSpecDefault:
 
     for {
       sqlQuery <- sqlQueryTask
-      result <- transaction
-        .apply {
-          selectAll(sqlQuery.as[Timezone])
-        }
+      result <- transaction {
+        selectAll(sqlQuery.as[Timezone])
+      }
         .provideLayer(ConnectionPools.testLayer)
     } yield result
   end getSomeTimezones
