@@ -24,35 +24,35 @@ import zio.jdbc.*
 import zio.json.*
 
 /**
- * Very simple example program finding the "about" post in the Wordpress database. It uses the '''zio-jdbc''' library.
+ * Very simple example program finding the "about" post in the Wordpress database. It uses the ***zio-jdbc*** library.
  *
  * This compact program showcases an approach towards programming of "business applications" that seems to work well.
  *
- * First of all, the approach is to separate '''data'''(as ADTs) from '''behaviour''', like is typical when combining OO and FP. The data
+ * First of all, the approach is to separate ***data*** (as ADTs) from ***behaviour***, like is typical when combining OO and FP. The data
  * classes are immutable.
  *
- * Secondly, for behaviour we program against '''interfaces''', in Java speak, instead of concrete classes. The concrete classes
- * implementing those interfaces get all their dependencies via the constructor, which increases flexibility and testability, and which
- * enables dependency injection. In this sense, the approach towards programming resembles the approach typical for Spring-based
+ * Secondly, for behaviour we program against ***interfaces***, in Java speak, instead of concrete classes. The concrete classes
+ * implementing those interfaces get all their dependencies via the ***constructor***, which increases flexibility and testability, and
+ * which enables dependency injection. In this sense, the approach towards programming resembles the approach typical for Spring-based
  * applications.
  *
- * Thirdly, and here's where ZIO comes in, the abstract methods in behaviour/service traits return '''ZIO functional effects'''. These
- * functional effects have no requirements, that is, they are of the ZIO `Task`` type. That ensures that no implementation details are
+ * Thirdly, and here's where ZIO comes in, the abstract methods in behaviour/service traits return ***ZIO functional effects***. These
+ * functional effects have no requirements, that is, they are of the ZIO [[zio.Task]] type. That ensures that no implementation details are
  * leaked by the abstract behaviour/service interface methods.
  *
  * So far, this looks much the same as for typical Spring-based applications, except that service methods return ZIO functional effects.
  * Hence, services return lazy recipes for behaviour instead of eagerly performing behaviour. Effects are actually run only in a main
- * program (or some other entrypoint), and up to that point it's just about combining functional effects as values, instead of running any
- * effect.
+ * program (or some other entrypoint), and up to that point it's just about writing combinable functional effects as values, instead of
+ * running any effect.
  *
- * Fourthly, unlike Spring wiring, wiring is done in a very principled type-safe way using '''ZIO layers'''. These layers are hardly visible
+ * Fourthly, unlike Spring wiring, wiring is done in a very principled type-safe way using ***ZIO layers***. These layers are hardly visible
  * anywhere (they are not used in service constructors themselves), but pop up mainly in or close to the main program (or other entrypoint).
  * Note that proper resource management is supported well by ZIO layers (and by ZIO effects).
  *
- * Finally, for better ergonomics the service companion objects implement an '''"accessor API"'''. It is the same as the abstract trait API,
+ * Finally, for better ergonomics the service companion objects implement an ***accessor API***. It is the same as the abstract trait API,
  * except that the methods return ZIO effects that require a service trait implementation to be injected. Just like the combined effect of
- * the program is run at the last moment, after just combining functional effects, the actual wiring can also be postponed to the last
- * moment before that. Using the "accessor API" through service companion objects makes this easy and pleasant to read.
+ * the program is run at the last moment, after just coding functional effects, the actual wiring can also be postponed to the last moment
+ * before that. Using the "accessor API" through service companion objects makes this easy and pleasant to read.
  *
  * @author
  *   Chris de Vreeze
