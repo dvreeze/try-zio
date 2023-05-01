@@ -18,41 +18,20 @@ package eu.cdevreeze.tryzio.wordpress.repo
 
 import eu.cdevreeze.tryzio.wordpress.model.Post
 import zio.*
+import zio.jdbc.ZConnection
 
 /**
- * Repository of posts.
+ * Repository of posts. In this low-level repository, the required ZConnection is part of the semantics.
  *
  * @author
  *   Chris de Vreeze
  */
-trait PostRepo[-R]:
+trait PostRepo:
 
-  def filterPosts(p: Post => Task[Boolean]): RIO[R, Seq[Post]]
+  def filterPosts(p: Post => Task[Boolean]): RIO[ZConnection, Seq[Post]]
 
-  def filterPostsReturningNoContent(p: Post => Task[Boolean]): RIO[R, Seq[Post]]
+  def findPost(postId: Long): RIO[ZConnection, Option[Post]]
 
-  def findPost(postId: Long): RIO[R, Option[Post]]
-
-  def findPostByName(name: String): RIO[R, Option[Post]]
-
-object PostRepo extends PostRepo.AccessorApi:
-
-  // See https://zio.dev/reference/service-pattern/, taken one step further
-
-  type Api = PostRepo[Any]
-
-  type AccessorApi = PostRepo[PostRepo.Api]
-
-  def filterPosts(p: Post => Task[Boolean]): RIO[Api, Seq[Post]] =
-    ZIO.serviceWithZIO[Api](_.filterPosts(p))
-
-  def filterPostsReturningNoContent(p: Post => Task[Boolean]): RIO[Api, Seq[Post]] =
-    ZIO.serviceWithZIO[Api](_.filterPostsReturningNoContent(p))
-
-  def findPost(postId: Long): RIO[Api, Option[Post]] =
-    ZIO.serviceWithZIO[Api](_.findPost(postId))
-
-  def findPostByName(name: String): RIO[Api, Option[Post]] =
-    ZIO.serviceWithZIO[Api](_.findPostByName(name))
+  def findPostByName(name: String): RIO[ZConnection, Option[Post]]
 
 end PostRepo

@@ -16,8 +16,9 @@
 
 package eu.cdevreeze.tryzio.wordpress.console
 
-import eu.cdevreeze.tryzio.wordpress.repo.PostRepo
 import eu.cdevreeze.tryzio.wordpress.repo.PostRepoImpl
+import eu.cdevreeze.tryzio.wordpress.repo.PostService
+import eu.cdevreeze.tryzio.wordpress.repo.PostServiceImpl
 import zio.*
 import zio.Console.*
 import zio.json.*
@@ -30,17 +31,17 @@ import zio.json.*
  */
 object FindPostByName extends ZIOAppDefault:
 
-  val program: ZIO[PostRepo.Api, Throwable, Unit] =
+  val program: ZIO[PostService.Api, Throwable, Unit] =
     for {
       _ <- printLine("Enter a post name:")
       postName <- readLine
       _ <- printLine(s"Finding post (if any) for post name '$postName':")
-      resultOpt <- PostRepo.findPostByName(postName)
+      resultOpt <- PostService.findPostByName(postName)
       jsonResultOpt <- ZIO.attempt(resultOpt.map(_.toJsonPretty))
       _ <- printLine(jsonResultOpt)
     } yield ()
 
   def run: Task[Unit] =
-    program.provide(ConnectionPools.liveLayer, ZLayer.fromFunction(PostRepoImpl(_)))
+    program.provide(ConnectionPools.liveLayer, PostRepoImpl.layer, PostServiceImpl.layer)
 
 end FindPostByName

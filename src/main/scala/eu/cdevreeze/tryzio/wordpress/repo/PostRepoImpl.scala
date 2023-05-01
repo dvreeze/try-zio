@@ -36,7 +36,7 @@ import zio.json.*
  * @author
  *   Chris de Vreeze
  */
-final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo.Api:
+final class PostRepoImpl() extends PostRepo:
 
   // Common Table Expression body for the unfiltered Post rows
   private def baseSelectQuery: SqlFragment =
@@ -98,25 +98,20 @@ final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo.Api:
 
   private given JdbcDecoder[PostRow] = JdbcDecoder(mapPostRow)
 
-  def filterPosts(p: Post => Task[Boolean]): Task[Seq[Post]] =
+  def filterPosts(p: Post => Task[Boolean]): RIO[ZConnection, Seq[Post]] =
     // Inefficient
     for {
       sqlFragment <- ZIO.attempt {
         sql"with posts as ($baseSelectQuery) select * from posts"
       }
-      posts <- transaction {
+      posts <- {
         selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
       }
-        .provideEnvironment(ZEnvironment(cp))
       filteredPosts <- ZIO.filter(posts)(p)
     } yield filteredPosts
 
-  def filterPostsReturningNoContent(p: Post => Task[Boolean]): Task[Seq[Post]] =
-    // Inefficient
-    filterPosts(p).map(_.map(_.copy(postContentOption = None).copy(postContentFilteredOption = None)))
-
-  def findPost(postId: Long): Task[Option[Post]] =
-    val filteredPosts: Task[Seq[Post]] =
+  def findPost(postId: Long): RIO[ZConnection, Option[Post]] =
+    val filteredPosts: RIO[ZConnection, Seq[Post]] =
       for {
         sqlFragment <- ZIO.attempt {
           sql"""
@@ -129,18 +124,17 @@ final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo.Api:
              select * from posts where ID in (select post_id from post_tree)
            """
         }
-        posts <- transaction {
+        posts <- {
           selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
         }
-          .provideEnvironment(ZEnvironment(cp))
       } yield posts
 
     // Return top-level post(s) only, be it with their descendants as children, grandchildren etc.
     filteredPosts.map(_.find(_.postId == postId))
   end findPost
 
-  def findPostByName(name: String): Task[Option[Post]] =
-    val filteredPosts: Task[Seq[Post]] =
+  def findPostByName(name: String): RIO[ZConnection, Option[Post]] =
+    val filteredPosts: RIO[ZConnection, Seq[Post]] =
       for {
         sqlFragment <- ZIO.attempt {
           sql"""
@@ -153,10 +147,9 @@ final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo.Api:
              select * from posts where ID in (select post_id from post_tree)
            """
         }
-        posts <- transaction {
+        posts <- {
           selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
         }
-          .provideEnvironment(ZEnvironment(cp))
       } yield posts
 
     // Return top-level post(s) only, be it with their descendants as children, grandchildren etc.
@@ -167,6 +160,8 @@ final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo.Api:
   private def emptyToNone(v: String): Option[String] = if v.isEmpty then None else Some(v)
 
 object PostRepoImpl:
+
+  val layer: ZLayer[Any, Nothing, PostRepoImpl] = ZLayer.succeed(PostRepoImpl())
 
   private case class PostRow(
       postId: Long,

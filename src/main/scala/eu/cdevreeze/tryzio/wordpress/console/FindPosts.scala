@@ -16,8 +16,9 @@
 
 package eu.cdevreeze.tryzio.wordpress.console
 
-import eu.cdevreeze.tryzio.wordpress.repo.PostRepo
 import eu.cdevreeze.tryzio.wordpress.repo.PostRepoImpl
+import eu.cdevreeze.tryzio.wordpress.repo.PostService
+import eu.cdevreeze.tryzio.wordpress.repo.PostServiceImpl
 import zio.*
 import zio.Console.*
 import zio.json.*
@@ -30,14 +31,14 @@ import zio.json.*
  */
 object FindPosts extends ZIOAppDefault:
 
-  val program: ZIO[PostRepo.Api, Throwable, Unit] =
+  val program: ZIO[PostService.Api, Throwable, Unit] =
     for {
-      results <- PostRepo.filterPosts(_ => ZIO.succeed(true))
+      results <- PostService.filterPosts(_ => ZIO.succeed(true))
       jsonResults <- ZIO.attempt(results.map(_.toJsonPretty))
       _ <- printLine(jsonResults)
     } yield ()
 
   def run: Task[Unit] =
-    program.provide(ConnectionPools.liveLayer, ZLayer.fromFunction(PostRepoImpl(_)))
+    program.provide(ConnectionPools.liveLayer, PostRepoImpl.layer, PostServiceImpl.layer)
 
 end FindPosts

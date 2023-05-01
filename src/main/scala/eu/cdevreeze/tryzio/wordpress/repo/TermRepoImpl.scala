@@ -33,7 +33,7 @@ import zio.jdbc.*
  * @author
  *   Chris de Vreeze
  */
-final class TermRepoImpl(val cp: ZConnectionPool) extends TermRepo.Api:
+final class TermRepoImpl() extends TermRepo:
 
   private def baseTermSql: SqlFragment =
     sql"select wp_terms.term_id, wp_terms.name, wp_terms.slug, wp_terms.term_group from wp_terms"
@@ -83,52 +83,48 @@ final class TermRepoImpl(val cp: ZConnectionPool) extends TermRepo.Api:
 
   private given JdbcDecoder[TermTaxonomyRow] = JdbcDecoder(mapTermTaxonomyRow)
 
-  def findAllTerms(): Task[Seq[Term]] =
+  def findAllTerms(): RIO[ZConnection, Seq[Term]] =
     for {
       sqlFragment <- ZIO.attempt {
         sql"with terms as ($baseTermSql) select * from terms"
       }
-      terms <- transaction {
+      terms <- {
         selectAll(sqlFragment.as[TermRow]).mapAttempt(_.map(_.toTerm))
       }
-        .provideEnvironment(ZEnvironment(cp))
     } yield terms
 
-  def findTerm(termId: Long): Task[Option[Term]] =
+  def findTerm(termId: Long): RIO[ZConnection, Option[Term]] =
     for {
       sqlFragment <- ZIO.attempt {
         sql"with terms as ($baseTermSql) select * from terms where term_id = $termId"
       }
-      termOption <- transaction {
+      termOption <- {
         selectOne(sqlFragment.as[TermRow]).mapAttempt(_.map(_.toTerm))
       }
-        .provideEnvironment(ZEnvironment(cp))
     } yield termOption
 
-  def findTermByName(name: String): Task[Option[Term]] =
+  def findTermByName(name: String): RIO[ZConnection, Option[Term]] =
     for {
       sqlFragment <- ZIO.attempt {
         sql"with terms as ($baseTermSql) select * from terms where name = $name"
       }
-      termOption <- transaction {
+      termOption <- {
         selectOne(sqlFragment.as[TermRow]).mapAttempt(_.map(_.toTerm))
       }
-        .provideEnvironment(ZEnvironment(cp))
     } yield termOption
 
-  def findAllTermTaxonomies(): Task[Seq[TermTaxonomy]] =
+  def findAllTermTaxonomies(): RIO[ZConnection, Seq[TermTaxonomy]] =
     for {
       sqlFragment <- ZIO.attempt {
         sql"with term_taxos as ($baseTermTaxonomySql) select * from term_taxos"
       }
-      termTaxos <- transaction {
+      termTaxos <- {
         selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
       }
-        .provideEnvironment(ZEnvironment(cp))
     } yield termTaxos
 
-  def findTermTaxonomy(termTaxoId: Long): Task[Option[TermTaxonomy]] =
-    val filteredTermTaxonomies: Task[Seq[TermTaxonomy]] =
+  def findTermTaxonomy(termTaxoId: Long): RIO[ZConnection, Option[TermTaxonomy]] =
+    val filteredTermTaxonomies: RIO[ZConnection, Seq[TermTaxonomy]] =
       for {
         sqlFragment <- ZIO.attempt {
           sql"""
@@ -141,18 +137,17 @@ final class TermRepoImpl(val cp: ZConnectionPool) extends TermRepo.Api:
              select * from term_taxos where term_taxonomy_id in (select tt_id from tt_tree)
            """
         }
-        termTaxos <- transaction {
+        termTaxos <- {
           selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
         }
-          .provideEnvironment(ZEnvironment(cp))
       } yield termTaxos
 
     // Return top-level term-taxonomies only, be it with their descendants as children, grandchildren etc.
     filteredTermTaxonomies.map(_.find(_.termTaxonomyId == termTaxoId))
   end findTermTaxonomy
 
-  def findTermTaxonomiesByTermId(termId: Long): Task[Seq[TermTaxonomy]] =
-    val filteredTermTaxonomies: Task[Seq[TermTaxonomy]] =
+  def findTermTaxonomiesByTermId(termId: Long): RIO[ZConnection, Seq[TermTaxonomy]] =
+    val filteredTermTaxonomies: RIO[ZConnection, Seq[TermTaxonomy]] =
       for {
         sqlFragment <- ZIO.attempt {
           sql"""
@@ -165,18 +160,17 @@ final class TermRepoImpl(val cp: ZConnectionPool) extends TermRepo.Api:
              select * from term_taxos where term_taxonomy_id in (select tt_id from tt_tree)
            """
         }
-        termTaxos <- transaction {
+        termTaxos <- {
           selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
         }
-          .provideEnvironment(ZEnvironment(cp))
       } yield termTaxos
 
     // Return top-level term-taxonomies only, be it with their descendants as children, grandchildren etc.
     filteredTermTaxonomies.map(_.filter(_.term.termId == termId))
   end findTermTaxonomiesByTermId
 
-  def findTermTaxonomiesByTermName(termName: String): Task[Seq[TermTaxonomy]] =
-    val filteredTermTaxonomies: Task[Seq[TermTaxonomy]] =
+  def findTermTaxonomiesByTermName(termName: String): RIO[ZConnection, Seq[TermTaxonomy]] =
+    val filteredTermTaxonomies: RIO[ZConnection, Seq[TermTaxonomy]] =
       for {
         sqlFragment <- ZIO.attempt {
           sql"""
@@ -192,10 +186,9 @@ final class TermRepoImpl(val cp: ZConnectionPool) extends TermRepo.Api:
              select * from term_taxos where term_taxonomy_id in (select tt_id from tt_tree)
            """
         }
-        termTaxos <- transaction {
+        termTaxos <- {
           selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
         }
-          .provideEnvironment(ZEnvironment(cp))
       } yield termTaxos
 
     // Return top-level term-taxonomies only, be it with their descendants as children, grandchildren etc.
@@ -205,6 +198,8 @@ final class TermRepoImpl(val cp: ZConnectionPool) extends TermRepo.Api:
   private def zeroToNone(v: Long): Option[Long] = if v == 0 then None else Some(v)
 
 object TermRepoImpl:
+
+  val layer: ZLayer[Any, Nothing, TermRepoImpl] = ZLayer.succeed(TermRepoImpl())
 
   private case class TermRow(id: Long, name: String, slug: String, termGroupOpt: Option[Long]):
     def toTerm: Term = Term(termId = id, name = name, slug = slug, termGroupOption = termGroupOpt)

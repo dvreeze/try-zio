@@ -19,56 +19,28 @@ package eu.cdevreeze.tryzio.wordpress.repo
 import eu.cdevreeze.tryzio.wordpress.model.Term
 import eu.cdevreeze.tryzio.wordpress.model.TermTaxonomy
 import zio.*
+import zio.jdbc.ZConnection
 
 /**
- * Repository of terms and term taxonomies.
+ * Repository of terms and term taxonomies. In this low-level repository, the required ZConnection is part of the semantics.
  *
  * @author
  *   Chris de Vreeze
  */
-trait TermRepo[-R]:
+trait TermRepo:
 
-  def findAllTerms(): RIO[R, Seq[Term]]
+  def findAllTerms(): RIO[ZConnection, Seq[Term]]
 
-  def findTerm(termId: Long): RIO[R, Option[Term]]
+  def findTerm(termId: Long): RIO[ZConnection, Option[Term]]
 
-  def findTermByName(name: String): RIO[R, Option[Term]]
+  def findTermByName(name: String): RIO[ZConnection, Option[Term]]
 
-  def findAllTermTaxonomies(): RIO[R, Seq[TermTaxonomy]]
+  def findAllTermTaxonomies(): RIO[ZConnection, Seq[TermTaxonomy]]
 
-  def findTermTaxonomy(termTaxoId: Long): RIO[R, Option[TermTaxonomy]]
+  def findTermTaxonomy(termTaxoId: Long): RIO[ZConnection, Option[TermTaxonomy]]
 
-  def findTermTaxonomiesByTermId(termId: Long): RIO[R, Seq[TermTaxonomy]]
+  def findTermTaxonomiesByTermId(termId: Long): RIO[ZConnection, Seq[TermTaxonomy]]
 
-  def findTermTaxonomiesByTermName(termName: String): RIO[R, Seq[TermTaxonomy]]
-
-object TermRepo extends TermRepo.AccessorApi:
-
-  // See https://zio.dev/reference/service-pattern/, taken one step further
-
-  type Api = TermRepo[Any]
-
-  type AccessorApi = TermRepo[TermRepo.Api]
-
-  def findAllTerms(): RIO[Api, Seq[Term]] =
-    ZIO.serviceWithZIO[Api](_.findAllTerms())
-
-  def findTerm(termId: Long): RIO[Api, Option[Term]] =
-    ZIO.serviceWithZIO[Api](_.findTerm(termId))
-
-  def findTermByName(name: String): RIO[Api, Option[Term]] =
-    ZIO.serviceWithZIO[Api](_.findTermByName(name))
-
-  def findAllTermTaxonomies(): RIO[Api, Seq[TermTaxonomy]] =
-    ZIO.serviceWithZIO[Api](_.findAllTermTaxonomies())
-
-  def findTermTaxonomy(termTaxoId: Long): RIO[Api, Option[TermTaxonomy]] =
-    ZIO.serviceWithZIO[Api](_.findTermTaxonomy(termTaxoId))
-
-  def findTermTaxonomiesByTermId(termId: Long): RIO[Api, Seq[TermTaxonomy]] =
-    ZIO.serviceWithZIO[Api](_.findTermTaxonomiesByTermId(termId))
-
-  def findTermTaxonomiesByTermName(termName: String): RIO[Api, Seq[TermTaxonomy]] =
-    ZIO.serviceWithZIO[Api](_.findTermTaxonomiesByTermName(termName))
+  def findTermTaxonomiesByTermName(termName: String): RIO[ZConnection, Seq[TermTaxonomy]]
 
 end TermRepo

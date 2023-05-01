@@ -16,28 +16,29 @@
 
 package eu.cdevreeze.tryzio.wordpress.console
 
-import eu.cdevreeze.tryzio.wordpress.repo.PostRepo
 import eu.cdevreeze.tryzio.wordpress.repo.PostRepoImpl2
+import eu.cdevreeze.tryzio.wordpress.repo.PostService
+import eu.cdevreeze.tryzio.wordpress.repo.PostServiceImpl
 import zio.*
 import zio.Console.*
 import zio.json.*
 
 /**
- * Program finding all posts in the Wordpress database, using PostRepoImpl2.
+ * Program finding all posts in the Wordpress database, using PostServiceImpl2.
  *
  * @author
  *   Chris de Vreeze
  */
 object FindPosts2 extends ZIOAppDefault:
 
-  val program: ZIO[PostRepo.Api, Throwable, Unit] =
+  val program: ZIO[PostService.Api, Throwable, Unit] =
     for {
-      results <- PostRepo.filterPosts(_ => ZIO.succeed(true))
+      results <- PostService.filterPosts(_ => ZIO.succeed(true))
       jsonResults <- ZIO.attempt(results.map(_.toJsonPretty))
       _ <- printLine(jsonResults)
     } yield ()
 
   def run: Task[Unit] =
-    program.provide(ConnectionPools.liveLayer, ZLayer.fromFunction(PostRepoImpl2(_)))
+    program.provide(ConnectionPools.liveLayer, PostRepoImpl2.layer, PostServiceImpl.layer)
 
 end FindPosts2

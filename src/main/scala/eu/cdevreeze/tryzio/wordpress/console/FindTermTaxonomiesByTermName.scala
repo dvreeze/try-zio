@@ -16,8 +16,9 @@
 
 package eu.cdevreeze.tryzio.wordpress.console
 
-import eu.cdevreeze.tryzio.wordpress.repo.TermRepo
 import eu.cdevreeze.tryzio.wordpress.repo.TermRepoImpl
+import eu.cdevreeze.tryzio.wordpress.repo.TermService
+import eu.cdevreeze.tryzio.wordpress.repo.TermServiceImpl
 import zio.*
 import zio.Console.*
 import zio.json.*
@@ -30,17 +31,17 @@ import zio.json.*
  */
 object FindTermTaxonomiesByTermName extends ZIOAppDefault:
 
-  val program: ZIO[TermRepo.Api, Throwable, Unit] =
+  val program: ZIO[TermService.Api, Throwable, Unit] =
     for {
       _ <- printLine("Enter a term name:")
       termName <- readLine
       _ <- printLine(s"Finding term taxonomies for term name '$termName':")
-      results <- TermRepo.findTermTaxonomiesByTermName(termName)
+      results <- TermService.findTermTaxonomiesByTermName(termName)
       jsonResults <- ZIO.attempt(results.map(_.toJsonPretty))
       _ <- printLine(jsonResults)
     } yield ()
 
   def run: Task[Unit] =
-    program.provide(ConnectionPools.liveLayer, ZLayer.fromFunction(TermRepoImpl(_)))
+    program.provide(ConnectionPools.liveLayer, TermRepoImpl.layer, TermServiceImpl.layer)
 
 end FindTermTaxonomiesByTermName
