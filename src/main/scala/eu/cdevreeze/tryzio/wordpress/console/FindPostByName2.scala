@@ -24,7 +24,7 @@ import zio.Console.*
 import zio.json.*
 
 /**
- * Program finding a Post by its name in the Wordpress database, using PostServiceImpl2.
+ * Program finding a Post by its name in the Wordpress database, using PostRepoImpl2.
  *
  * @author
  *   Chris de Vreeze
