@@ -32,9 +32,9 @@ import zio.json.*
  * classes are immutable.
  *
  * Secondly, for behaviour we program against ***interfaces***, in Java speak, instead of concrete classes. The concrete classes
- * implementing those interfaces get all their dependencies via the ***constructor***, which increases flexibility and testability, and
- * which enables dependency injection. In this sense, the approach towards programming resembles the approach typical for Spring-based
- * applications.
+ * implementing those interfaces get all their dependencies via the ***constructor***. The constructor parameters are typically of interface
+ * types as well. This interface-based approach increases flexibility and testability, and enables dependency injection. In this sense, the
+ * approach towards programming resembles the approach typical for Spring-based applications.
  *
  * Thirdly, and here's where ZIO comes in, the abstract methods in behaviour/service traits return ***ZIO functional effects***. These
  * functional effects have no requirements, that is, they are of the ZIO [[zio.Task]] type. That ensures that no implementation details are
