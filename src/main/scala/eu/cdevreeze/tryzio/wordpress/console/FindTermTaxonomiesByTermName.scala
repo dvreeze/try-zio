@@ -31,7 +31,7 @@ import zio.json.*
  */
 object FindTermTaxonomiesByTermName extends ZIOAppDefault:
 
-  val program: ZIO[TermService.Api, Throwable, Unit] =
+  val program: ZIO[TermService, Throwable, Unit] =
     for {
       _ <- printLine("Enter a term name:")
       termName <- readLine

@@ -26,7 +26,7 @@ import zio.jdbc.*
  * @author
  *   Chris de Vreeze
  */
-final class PostServiceImpl(val cp: ZConnectionPool, val repo: PostRepo) extends PostService.Api:
+final class PostServiceImpl(val cp: ZConnectionPool, val repo: PostRepo) extends PostService:
 
   def filterPosts(p: Post => Task[Boolean]): Task[Seq[Post]] =
     // Inefficient

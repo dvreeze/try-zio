@@ -26,7 +26,7 @@ import zio.jdbc.*
  * @author
  *   Chris de Vreeze
  */
-final class TermServiceImpl(val cp: ZConnectionPool, val repo: TermRepo) extends TermService.Api:
+final class TermServiceImpl(val cp: ZConnectionPool, val repo: TermRepo) extends TermService:
 
   def findAllTerms(): Task[Seq[Term]] =
     for {

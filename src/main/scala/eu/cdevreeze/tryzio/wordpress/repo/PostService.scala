@@ -25,7 +25,7 @@ import zio.*
  * @author
  *   Chris de Vreeze
  */
-trait PostService[-R]:
+trait PostServiceLike[-R]:
 
   def filterPosts(p: Post => Task[Boolean]): RIO[R, Seq[Post]]
 
@@ -35,24 +35,24 @@ trait PostService[-R]:
 
   def findPostByName(name: String): RIO[R, Option[Post]]
 
-object PostService extends PostService.AccessorApi:
+end PostServiceLike
+
+type PostService = PostServiceLike[Any]
+
+object PostService extends PostServiceLike[PostService]:
 
   // See https://zio.dev/reference/service-pattern/, taken one step further
 
-  type Api = PostService[Any]
+  def filterPosts(p: Post => Task[Boolean]): RIO[PostService, Seq[Post]] =
+    ZIO.serviceWithZIO[PostService](_.filterPosts(p))
 
-  type AccessorApi = PostService[PostService.Api]
+  def filterPostsReturningNoContent(p: Post => Task[Boolean]): RIO[PostService, Seq[Post]] =
+    ZIO.serviceWithZIO[PostService](_.filterPostsReturningNoContent(p))
 
-  def filterPosts(p: Post => Task[Boolean]): RIO[Api, Seq[Post]] =
-    ZIO.serviceWithZIO[Api](_.filterPosts(p))
+  def findPost(postId: Long): RIO[PostService, Option[Post]] =
+    ZIO.serviceWithZIO[PostService](_.findPost(postId))
 
-  def filterPostsReturningNoContent(p: Post => Task[Boolean]): RIO[Api, Seq[Post]] =
-    ZIO.serviceWithZIO[Api](_.filterPostsReturningNoContent(p))
-
-  def findPost(postId: Long): RIO[Api, Option[Post]] =
-    ZIO.serviceWithZIO[Api](_.findPost(postId))
-
-  def findPostByName(name: String): RIO[Api, Option[Post]] =
-    ZIO.serviceWithZIO[Api](_.findPostByName(name))
+  def findPostByName(name: String): RIO[PostService, Option[Post]] =
+    ZIO.serviceWithZIO[PostService](_.findPostByName(name))
 
 end PostService

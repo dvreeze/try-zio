@@ -26,7 +26,7 @@ import zio.*
  * @author
  *   Chris de Vreeze
  */
-trait TermService[-R]:
+trait TermServiceLike[-R]:
 
   def findAllTerms(): RIO[R, Seq[Term]]
 
@@ -42,33 +42,33 @@ trait TermService[-R]:
 
   def findTermTaxonomiesByTermName(termName: String): RIO[R, Seq[TermTaxonomy]]
 
-object TermService extends TermService.AccessorApi:
+end TermServiceLike
+
+type TermService = TermServiceLike[Any]
+
+object TermService extends TermServiceLike[TermService]:
 
   // See https://zio.dev/reference/service-pattern/, taken one step further
 
-  type Api = TermService[Any]
+  def findAllTerms(): RIO[TermService, Seq[Term]] =
+    ZIO.serviceWithZIO[TermService](_.findAllTerms())
 
-  type AccessorApi = TermService[TermService.Api]
+  def findTerm(termId: Long): RIO[TermService, Option[Term]] =
+    ZIO.serviceWithZIO[TermService](_.findTerm(termId))
 
-  def findAllTerms(): RIO[Api, Seq[Term]] =
-    ZIO.serviceWithZIO[Api](_.findAllTerms())
+  def findTermByName(name: String): RIO[TermService, Option[Term]] =
+    ZIO.serviceWithZIO[TermService](_.findTermByName(name))
 
-  def findTerm(termId: Long): RIO[Api, Option[Term]] =
-    ZIO.serviceWithZIO[Api](_.findTerm(termId))
+  def findAllTermTaxonomies(): RIO[TermService, Seq[TermTaxonomy]] =
+    ZIO.serviceWithZIO[TermService](_.findAllTermTaxonomies())
 
-  def findTermByName(name: String): RIO[Api, Option[Term]] =
-    ZIO.serviceWithZIO[Api](_.findTermByName(name))
+  def findTermTaxonomy(termTaxoId: Long): RIO[TermService, Option[TermTaxonomy]] =
+    ZIO.serviceWithZIO[TermService](_.findTermTaxonomy(termTaxoId))
 
-  def findAllTermTaxonomies(): RIO[Api, Seq[TermTaxonomy]] =
-    ZIO.serviceWithZIO[Api](_.findAllTermTaxonomies())
+  def findTermTaxonomiesByTermId(termId: Long): RIO[TermService, Seq[TermTaxonomy]] =
+    ZIO.serviceWithZIO[TermService](_.findTermTaxonomiesByTermId(termId))
 
-  def findTermTaxonomy(termTaxoId: Long): RIO[Api, Option[TermTaxonomy]] =
-    ZIO.serviceWithZIO[Api](_.findTermTaxonomy(termTaxoId))
-
-  def findTermTaxonomiesByTermId(termId: Long): RIO[Api, Seq[TermTaxonomy]] =
-    ZIO.serviceWithZIO[Api](_.findTermTaxonomiesByTermId(termId))
-
-  def findTermTaxonomiesByTermName(termName: String): RIO[Api, Seq[TermTaxonomy]] =
-    ZIO.serviceWithZIO[Api](_.findTermTaxonomiesByTermName(termName))
+  def findTermTaxonomiesByTermName(termName: String): RIO[TermService, Seq[TermTaxonomy]] =
+    ZIO.serviceWithZIO[TermService](_.findTermTaxonomiesByTermName(termName))
 
 end TermService

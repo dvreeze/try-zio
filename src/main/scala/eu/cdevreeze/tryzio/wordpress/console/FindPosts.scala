@@ -31,7 +31,7 @@ import zio.json.*
  */
 object FindPosts extends ZIOAppDefault:
 
-  val program: ZIO[PostService.Api, Throwable, Unit] =
+  val program: ZIO[PostService, Throwable, Unit] =
     for {
       results <- PostService.filterPosts(_ => ZIO.succeed(true))
       jsonResults <- ZIO.attempt(results.map(_.toJsonPretty))

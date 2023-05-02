@@ -31,7 +31,7 @@ import zio.json.*
  */
 object FindTermTaxonomies extends ZIOAppDefault:
 
-  val program: ZIO[TermService.Api, Throwable, Unit] =
+  val program: ZIO[TermService, Throwable, Unit] =
     for {
       results <- TermService.findAllTermTaxonomies()
       jsonResults <- ZIO.attempt(results.map(_.toJsonPretty))

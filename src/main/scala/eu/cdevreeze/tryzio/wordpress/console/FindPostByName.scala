@@ -31,7 +31,7 @@ import zio.json.*
  */
 object FindPostByName extends ZIOAppDefault:
 
-  val program: ZIO[PostService.Api, Throwable, Unit] =
+  val program: ZIO[PostService, Throwable, Unit] =
     for {
       _ <- printLine("Enter a post name:")
       postName <- readLine
