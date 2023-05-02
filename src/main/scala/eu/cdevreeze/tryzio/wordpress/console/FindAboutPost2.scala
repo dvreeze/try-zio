@@ -25,12 +25,14 @@ import zio.json.*
 
 /**
  * Much like FindAboutPost, but using lookups instead of "dependency injection". This approach is less desirable than dependency injection,
- * but shown in order to compare them.
+ * but shown in order to compare them (when thinking about the comparison at a much larger scale than this simple program).
  *
  * @author
  *   Chris de Vreeze
  */
 object FindAboutPost2 extends ZIOAppDefault:
+
+  // Data
 
   final case class Post(
       id: Long,
@@ -41,52 +43,82 @@ object FindAboutPost2 extends ZIOAppDefault:
       postContent: String
   )
 
-  private given JdbcDecoder[Post] = JdbcDecoder { (rs: ResultSet) =>
-    Post(
-      id = rs.getLong(1),
-      postName = rs.getString(2),
-      postTitle = rs.getString(3),
-      postStatus = rs.getString(4),
-      postType = rs.getString(5),
-      postContent = rs.getString(6)
-    )
-  }
-
   private given JsonEncoder[Post] = DeriveJsonEncoder.gen[Post]
 
-  val getEnv: RIO[Scope, ZEnvironment[PostRepo]] =
-    val fullLayer: ZLayer[Any, Throwable, PostRepo] =
-      ConnectionPools.liveLayer >>> ZLayer.fromFunction(PostRepoImpl(_))
+  // The program
+
+  val getEnv: RIO[Scope, ZEnvironment[PostService]] =
+    val fullLayer: ZLayer[Any, Throwable, PostService] =
+      (ConnectionPools.liveLayer ++ ZLayer.succeed(PostRepoImpl())) >>> PostServiceImpl.layer
     fullLayer.build
 
   val program: RIO[Scope, Unit] =
     val postName = "about"
     for {
       env <- getEnv
-      postRepo = env.get[PostRepo]
-      postOption <- postRepo.findPost(postName)
+      postService = env.get[PostService] // Service lookup
+      postOption <- postService.findPost(postName)
       jsonResult <- ZIO.attempt(postOption.toJsonPretty)
       _ <- printLine(jsonResult)
     } yield ()
 
   def run: Task[Unit] = ZIO.scoped(program)
 
-  trait PostRepo:
-    def findPost(postName: String): Task[Option[Post]]
+  // The transactional service (API, accessor API, and implementation)
 
-  final class PostRepoImpl(val cp: ZConnectionPool) extends PostRepo:
+  trait PostServiceLike[-R]:
+    def findPost(postName: String): RIO[R, Option[Post]]
+
+  type PostService = PostServiceLike[Any]
+
+  object PostService extends PostServiceLike[PostService]:
+    def findPost(postName: String): RIO[PostService, Option[Post]] =
+      ZIO.serviceWithZIO[PostService](_.findPost(postName))
+
+  final class PostServiceImpl(val cp: ZConnectionPool, val repo: PostRepo) extends PostService:
     def findPost(postName: String): Task[Option[Post]] =
+      for {
+        postOption <- transaction
+          .apply { // The explicit apply method call could be left out, of course
+            repo.findPost(postName)
+          }
+          .provideEnvironment(ZEnvironment(cp))
+      } yield postOption
+
+  object PostServiceImpl:
+    val layer: ZLayer[ZConnectionPool & PostRepo, Nothing, PostServiceImpl] =
+      ZLayer {
+        for {
+          cp <- ZIO.service[ZConnectionPool]
+          repo <- ZIO.service[PostRepo]
+        } yield PostServiceImpl(cp, repo)
+      }
+
+  // The lower level repository, where the connection can be seen as part of the semantics (API and implementation)
+
+  trait PostRepo:
+    def findPost(postName: String): RIO[ZConnection, Option[Post]]
+
+  final class PostRepoImpl() extends PostRepo:
+    def findPost(postName: String): RIO[ZConnection, Option[Post]] =
       for {
         sql <- ZIO.attempt {
           sql"""select ID, post_name, post_title, post_status, post_type, post_content
           from wp_posts
          where post_name = $postName"""
         }
-        postOption <- transaction
-          .apply { // Method name "apply" can be left out, of course.
-            selectOne(sql.as[Post])
-          }
-          .provideEnvironment(ZEnvironment(cp))
+        postOption <- selectOne(sql.as[Post])
       } yield postOption
+
+    private given JdbcDecoder[Post] = JdbcDecoder { (rs: ResultSet) =>
+      Post(
+        id = rs.getLong(1),
+        postName = rs.getString(2),
+        postTitle = rs.getString(3),
+        postStatus = rs.getString(4),
+        postType = rs.getString(5),
+        postContent = rs.getString(6)
+      )
+    }
 
 end FindAboutPost2
