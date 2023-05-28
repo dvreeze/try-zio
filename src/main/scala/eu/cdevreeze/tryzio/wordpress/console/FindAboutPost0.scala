@@ -24,13 +24,12 @@ import zio.jdbc.*
 import zio.json.*
 
 /**
- * Much like FindAboutPost, but using lookups instead of "dependency injection". This approach is less desirable than dependency injection,
- * but shown in order to compare them (when thinking about the comparison at a much larger scale than this simple program).
+ * First iteration of what turned into program FindAboutPost.
  *
  * @author
  *   Chris de Vreeze
  */
-object FindAboutPost2 extends ZIOAppDefault:
+object FindAboutPost0 extends ZIOAppDefault:
 
   // Data
 
@@ -47,22 +46,16 @@ object FindAboutPost2 extends ZIOAppDefault:
 
   // The program
 
-  val getEnv: RIO[Scope, ZEnvironment[PostService]] =
-    val fullLayer: ZLayer[Any, Throwable, PostService] =
-      (ConnectionPools.liveLayer ++ ZLayer.succeed(PostRepoImpl())) >>> PostServiceImpl.layer
-    fullLayer.build
-
-  val program: RIO[Scope, Unit] =
+  val program: ZIO[PostService, Throwable, Unit] =
     val postName = "about"
     for {
-      env <- getEnv
-      postService = env.get[PostService] // Service lookup
-      postOption <- postService.findPost(postName)
+      postOption <- ZIO.serviceWithZIO[PostService](_.findPost(postName))
       jsonResult <- ZIO.attempt(postOption.toJsonPretty)
       _ <- printLine(jsonResult)
     } yield ()
 
-  def run: Task[Unit] = ZIO.scoped(program)
+  def run: Task[Unit] =
+    program.provide(ConnectionPools.liveLayer, ZLayer.succeed(PostRepoImpl()), PostServiceImpl.layer)
 
   // The transactional service (API, and implementation)
 
@@ -114,4 +107,4 @@ object FindAboutPost2 extends ZIOAppDefault:
       )
     }
 
-end FindAboutPost2
+end FindAboutPost0

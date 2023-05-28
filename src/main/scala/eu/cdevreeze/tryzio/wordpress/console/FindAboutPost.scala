@@ -98,13 +98,12 @@ object FindAboutPost extends ZIOAppDefault:
 
   final class PostServiceImpl(val cp: ZConnectionPool, val repo: PostRepo) extends PostService:
     def findPost(postName: String): Task[Option[Post]] =
-      for {
-        postOption <- transaction
-          .apply { // The explicit apply method call could be left out, of course
-            repo.findPost(postName)
-          }
-          .provideEnvironment(ZEnvironment(cp))
-      } yield postOption
+      // Note that transaction is a ZLayer taking a long-lived ZConnectionPool and returning a new short-lived ZConnection
+      transaction
+        .apply { // The explicit apply method call could be left out, of course
+          repo.findPost(postName)
+        }
+        .provideEnvironment(ZEnvironment(cp))
 
   object PostServiceImpl:
     val layer: ZLayer[ZConnectionPool & PostRepo, Nothing, PostServiceImpl] =
