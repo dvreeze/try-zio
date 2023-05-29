@@ -31,7 +31,7 @@ ThisBuild / pomIncludeRepository := { _ => false }
 
 val zioVersion = "2.0.13"
 val zioJsonVersion = "0.5.0"
-val zioHttpVersion = "0.0.5"
+val zioHttpVersion = "3.0.0-RC2"
 val zioConfigVersion = "4.0.0-RC14"
 val zioJdbcVersion = "0.0.2"
 val testContainersVersion = "1.18.0"

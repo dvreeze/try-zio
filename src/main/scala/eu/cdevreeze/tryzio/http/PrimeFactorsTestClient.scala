@@ -23,7 +23,6 @@ import scala.util.chaining.*
 
 import zio.*
 import zio.http.*
-import zio.http.model.*
 
 /**
  * HTTP client program simultaneously querying the server for prime factors of multiple numbers, using ZIO and zio-http.
@@ -84,7 +83,7 @@ object PrimeFactorsTestClient extends ZIOAppDefault:
 
   private def getResponseAsString(url: URI): RIO[Client, String] =
     for {
-      headers <- ZIO.attempt(Headers.host(url.getHost))
+      headers <- ZIO.attempt(Headers(Header.Host(url.getHost)))
       response <- Client.request(url = url.toString, headers = headers)
       content <- response.body.asString
     } yield content

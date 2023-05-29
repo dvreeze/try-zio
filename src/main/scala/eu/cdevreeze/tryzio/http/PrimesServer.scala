@@ -24,7 +24,6 @@ import scala.util.chaining.*
 import eu.cdevreeze.tryzio.primes.Primes
 import zio.*
 import zio.http.*
-import zio.http.model.*
 import zio.metrics.Metric
 import zio.metrics.MetricLabel
 
@@ -53,7 +52,7 @@ object PrimesServer extends ZIOAppDefault:
     ZIO.logInfo(s"Server started on port $port")
 
   val httpApp: HttpApp[Any, Nothing] = Http.collectZIO[Request] {
-    case req @ Method.GET -> !! / "primes" / number =>
+    case req @ Method.GET -> Path.empty / "primes" / number =>
       val getOptNum: Task[Option[BigInt]] = ZIO
         .attempt(BigInt(number))
         .asSome
@@ -71,7 +70,7 @@ object PrimesServer extends ZIOAppDefault:
         }
         .tap(_ => ZIO.attempt(req.url.path.toString).flatMap(path => logRequest(path)))
         .orDie @@ countAllRequests("GET", "/primes")
-    case req @ Method.GET -> !! / "primeFactors" / number =>
+    case req @ Method.GET -> Path.empty / "primeFactors" / number =>
       val getOptNum: Task[Option[BigInt]] = ZIO.attempt(BigInt(number)).asSome
 
       getOptNum
