@@ -52,7 +52,7 @@ object PrimesServer extends ZIOAppDefault:
     ZIO.logInfo(s"Server started on port $port")
 
   val httpApp: HttpApp[Any, Nothing] = Http.collectZIO[Request] {
-    case req @ Method.GET -> Path.empty / "primes" / number =>
+    case req @ Method.GET -> Path.root / "primes" / number =>
       val getOptNum: Task[Option[BigInt]] = ZIO
         .attempt(BigInt(number))
         .asSome
@@ -70,7 +70,7 @@ object PrimesServer extends ZIOAppDefault:
         }
         .tap(_ => ZIO.attempt(req.url.path.toString).flatMap(path => logRequest(path)))
         .orDie @@ countAllRequests("GET", "/primes")
-    case req @ Method.GET -> Path.empty / "primeFactors" / number =>
+    case req @ Method.GET -> Path.root / "primeFactors" / number =>
       val getOptNum: Task[Option[BigInt]] = ZIO.attempt(BigInt(number)).asSome
 
       getOptNum
