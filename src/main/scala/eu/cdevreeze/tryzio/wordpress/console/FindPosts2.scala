@@ -38,7 +38,7 @@ object FindPosts2 extends ZIOAppDefault:
       _ <- printLine(jsonResults)
     } yield ()
 
-  def run: Task[Unit] =
+  val run: Task[Unit] =
     program.provide(ConnectionPools.liveLayer, PostRepoImpl2.layer, PostServiceImpl.layer)
 
 end FindPosts2

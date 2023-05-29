@@ -38,7 +38,7 @@ object FindTermTaxonomies extends ZIOAppDefault:
       _ <- printLine(jsonResults)
     } yield ()
 
-  def run: Task[Unit] =
+  val run: Task[Unit] =
     program.provide(ConnectionPools.liveLayer, TermRepoImpl.layer, TermServiceImpl.layer)
 
 end FindTermTaxonomies

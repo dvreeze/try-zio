@@ -62,7 +62,7 @@ object FindAboutPost2 extends ZIOAppDefault:
       _ <- printLine(jsonResult)
     } yield ()
 
-  def run: Task[Unit] = ZIO.scoped(program)
+  val run: Task[Unit] = ZIO.scoped(program)
 
   // The transactional service (API, and implementation)
 

@@ -41,7 +41,7 @@ object FindPostByName2 extends ZIOAppDefault:
       _ <- printLine(jsonResultOpt)
     } yield ()
 
-  def run: Task[Unit] =
+  val run: Task[Unit] =
     program.provide(ConnectionPools.liveLayer, PostRepoImpl2.layer, PostServiceImpl.layer)
 
 end FindPostByName2

@@ -54,7 +54,7 @@ object FindAboutPost0 extends ZIOAppDefault:
       _ <- printLine(jsonResult)
     } yield ()
 
-  def run: Task[Unit] =
+  val run: Task[Unit] =
     program.provide(ConnectionPools.liveLayer, ZLayer.succeed(PostRepoImpl()), PostServiceImpl.layer)
 
   // The transactional service (API, and implementation)
