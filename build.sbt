@@ -1,5 +1,5 @@
 
-val scalaVer = "3.2.2"
+val scalaVer = "3.3.0"
 val crossScalaVer = Seq(scalaVer)
 
 ThisBuild / description  := "Trying out ZIO"
@@ -29,10 +29,10 @@ ThisBuild / publishTo := {
 ThisBuild / pomExtra := pomData
 ThisBuild / pomIncludeRepository := { _ => false }
 
-val zioVersion = "2.0.13"
+val zioVersion = "2.0.14"
 val zioJsonVersion = "0.5.0"
 val zioHttpVersion = "3.0.0-RC2"
-val zioConfigVersion = "4.0.0-RC14"
+val zioConfigVersion = "4.0.0-RC16"
 val zioJdbcVersion = "0.0.2"
 val testContainersVersion = "1.18.0"
 
