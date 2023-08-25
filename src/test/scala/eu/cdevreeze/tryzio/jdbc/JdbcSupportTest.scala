@@ -50,11 +50,11 @@ object JdbcSupportTest extends ZIOSpecDefault:
 
   private final case class Timezone(id: Int, name: String, useLeapSeconds: Boolean)
 
-  private given JdbcDecoder[User] = { (rs: ResultSet) =>
+  private given JdbcDecoder[User] = JdbcDecoder { rs => idx =>
     User(rs.getString(1), rs.getString(2))
   }
 
-  private given JdbcDecoder[Timezone] = { (rs: ResultSet) =>
+  private given JdbcDecoder[Timezone] = JdbcDecoder { rs => idx =>
     Timezone(rs.getInt(1), rs.getString(2), rs.getString(3) == "Y")
   }
 
@@ -105,7 +105,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
         sql"select host, user from user"
       }
       result <- transaction {
-        selectAll(sqlQuery.as[User])
+        sqlQuery.query[User].selectAll
       }
         .provideLayer(ConnectionPools.testLayer)
     } yield result
@@ -124,7 +124,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
     for {
       sqlQuery <- sqlQueryTask
       result <- transaction {
-        selectAll(sqlQuery.as[Timezone])
+        sqlQuery.query[Timezone].selectAll
       }
         .provideLayer(ConnectionPools.testLayer)
     } yield result

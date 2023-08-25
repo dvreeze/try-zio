@@ -88,14 +88,14 @@ final class PostRepoImpl2() extends PostRepo:
          )
        """
 
-  private def mapPostRow(rs: ResultSet): PostRow =
+  private def mapPostRow(idx: Int, rs: ResultSet): PostRow =
     val postId: Long = rs.getLong(1)
     JsonDecoder[PostRow]
       .decodeJson(rs.getString(2))
       .fold(sys.error, identity)
       .ensuring(_.postId == postId)
 
-  private given JdbcDecoder[PostRow] = JdbcDecoder(mapPostRow)
+  private given JdbcDecoder[PostRow] = JdbcDecoder(rs => idx => mapPostRow(idx, rs))
 
   def filterPosts(p: Post => Task[Boolean]): RIO[ZConnection, Seq[Post]] =
     // Inefficient
@@ -104,7 +104,7 @@ final class PostRepoImpl2() extends PostRepo:
         sql"with posts as ($baseSelectQuery) select * from posts"
       }
       posts <- {
-        selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
+        sqlFragment.query[PostRow].selectAll.mapAttempt(PostRow.toPosts)
       }
       filteredPosts <- ZIO.filter(posts)(p)
     } yield filteredPosts
@@ -124,7 +124,7 @@ final class PostRepoImpl2() extends PostRepo:
            """
         }
         posts <- {
-          selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
+          sqlFragment.query[PostRow].selectAll.mapAttempt(PostRow.toPosts)
         }
       } yield posts
 
@@ -147,7 +147,7 @@ final class PostRepoImpl2() extends PostRepo:
            """
         }
         posts <- {
-          selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
+          sqlFragment.query[PostRow].selectAll.mapAttempt(PostRow.toPosts)
         }
       } yield posts
 

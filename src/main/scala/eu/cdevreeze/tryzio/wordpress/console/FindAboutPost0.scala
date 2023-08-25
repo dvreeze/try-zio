@@ -93,10 +93,10 @@ object FindAboutPost0 extends ZIOAppDefault:
           from wp_posts
          where post_name = $postName"""
         }
-        postOption <- selectOne(sql.as[Post])
+        postOption <- sql.query[Post].selectOne
       } yield postOption
 
-    private given JdbcDecoder[Post] = JdbcDecoder { (rs: ResultSet) =>
+    private given JdbcDecoder[Post] = JdbcDecoder { rs => idx =>
       Post(
         id = rs.getLong(1),
         postName = rs.getString(2),

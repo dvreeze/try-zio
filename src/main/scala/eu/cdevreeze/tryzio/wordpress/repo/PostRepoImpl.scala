@@ -68,7 +68,7 @@ final class PostRepoImpl() extends PostRepo:
          )
        """
 
-  private def mapPostRow(rs: ResultSet): PostRow =
+  private def mapPostRow(idx: Int, rs: ResultSet): PostRow =
     PostRow(
       postId = rs.getLong(1),
       postDate = Try(rs.getTimestamp(2).toInstant).getOrElse(Instant.EPOCH),
@@ -96,7 +96,7 @@ final class PostRepoImpl() extends PostRepo:
       postMeta = JsonDecoder[Map[String, String]].decodeJson(rs.getString(24)).getOrElse(Map.empty)
     )
 
-  private given JdbcDecoder[PostRow] = JdbcDecoder(mapPostRow)
+  private given JdbcDecoder[PostRow] = JdbcDecoder(rs => idx => mapPostRow(idx, rs))
 
   def filterPosts(p: Post => Task[Boolean]): RIO[ZConnection, Seq[Post]] =
     // Inefficient
@@ -105,7 +105,7 @@ final class PostRepoImpl() extends PostRepo:
         sql"with posts as ($baseSelectQuery) select * from posts"
       }
       posts <- {
-        selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
+        sqlFragment.query[PostRow].selectAll.mapAttempt(PostRow.toPosts)
       }
       filteredPosts <- ZIO.filter(posts)(p)
     } yield filteredPosts
@@ -125,7 +125,7 @@ final class PostRepoImpl() extends PostRepo:
            """
         }
         posts <- {
-          selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
+          sqlFragment.query[PostRow].selectAll.mapAttempt(PostRow.toPosts)
         }
       } yield posts
 
@@ -148,7 +148,7 @@ final class PostRepoImpl() extends PostRepo:
            """
         }
         posts <- {
-          selectAll(sqlFragment.as[PostRow]).mapAttempt(PostRow.toPosts)
+          sqlFragment.query[PostRow].selectAll.mapAttempt(PostRow.toPosts)
         }
       } yield posts
 

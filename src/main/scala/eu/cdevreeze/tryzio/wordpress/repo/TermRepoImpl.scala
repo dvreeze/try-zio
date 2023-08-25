@@ -63,10 +63,10 @@ final class TermRepoImpl() extends TermRepo:
          )
        """
 
-  private def mapTermRow(rs: ResultSet): TermRow =
+  private def mapTermRow(idx: Int, rs: ResultSet): TermRow =
     TermRow(id = rs.getLong(1), name = rs.getString(2), slug = rs.getString(3), termGroupOpt = zeroToNone(rs.getLong(4)))
 
-  private def mapTermTaxonomyRow(rs: ResultSet): TermTaxonomyRow =
+  private def mapTermTaxonomyRow(idx: Int, rs: ResultSet): TermTaxonomyRow =
     TermTaxonomyRow(
       termTaxonomyId = rs.getLong(1),
       termId = rs.getLong(2),
@@ -79,9 +79,9 @@ final class TermRepoImpl() extends TermRepo:
       count = rs.getInt(9)
     )
 
-  private given JdbcDecoder[TermRow] = JdbcDecoder(mapTermRow)
+  private given JdbcDecoder[TermRow] = JdbcDecoder(rs => idx => mapTermRow(idx, rs))
 
-  private given JdbcDecoder[TermTaxonomyRow] = JdbcDecoder(mapTermTaxonomyRow)
+  private given JdbcDecoder[TermTaxonomyRow] = JdbcDecoder(rs => idx => mapTermTaxonomyRow(idx, rs))
 
   def findAllTerms(): RIO[ZConnection, Seq[Term]] =
     for {
@@ -89,7 +89,7 @@ final class TermRepoImpl() extends TermRepo:
         sql"with terms as ($baseTermSql) select * from terms"
       }
       terms <- {
-        selectAll(sqlFragment.as[TermRow]).mapAttempt(_.map(_.toTerm))
+        sqlFragment.query[TermRow].selectAll.mapAttempt(_.map(_.toTerm))
       }
     } yield terms
 
@@ -99,7 +99,7 @@ final class TermRepoImpl() extends TermRepo:
         sql"with terms as ($baseTermSql) select * from terms where term_id = $termId"
       }
       termOption <- {
-        selectOne(sqlFragment.as[TermRow]).mapAttempt(_.map(_.toTerm))
+        sqlFragment.query[TermRow].selectOne.mapAttempt(_.map(_.toTerm))
       }
     } yield termOption
 
@@ -109,7 +109,7 @@ final class TermRepoImpl() extends TermRepo:
         sql"with terms as ($baseTermSql) select * from terms where name = $name"
       }
       termOption <- {
-        selectOne(sqlFragment.as[TermRow]).mapAttempt(_.map(_.toTerm))
+        sqlFragment.query[TermRow].selectOne.mapAttempt(_.map(_.toTerm))
       }
     } yield termOption
 
@@ -119,7 +119,7 @@ final class TermRepoImpl() extends TermRepo:
         sql"with term_taxos as ($baseTermTaxonomySql) select * from term_taxos"
       }
       termTaxos <- {
-        selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
+        sqlFragment.query[TermTaxonomyRow].selectAll.mapAttempt(TermTaxonomyRow.toTermTaxonomies)
       }
     } yield termTaxos
 
@@ -138,7 +138,7 @@ final class TermRepoImpl() extends TermRepo:
            """
         }
         termTaxos <- {
-          selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
+          sqlFragment.query[TermTaxonomyRow].selectAll.mapAttempt(TermTaxonomyRow.toTermTaxonomies)
         }
       } yield termTaxos
 
@@ -161,7 +161,7 @@ final class TermRepoImpl() extends TermRepo:
            """
         }
         termTaxos <- {
-          selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
+          sqlFragment.query[TermTaxonomyRow].selectAll.mapAttempt(TermTaxonomyRow.toTermTaxonomies)
         }
       } yield termTaxos
 
@@ -187,7 +187,7 @@ final class TermRepoImpl() extends TermRepo:
            """
         }
         termTaxos <- {
-          selectAll(sqlFragment.as[TermTaxonomyRow]).mapAttempt(TermTaxonomyRow.toTermTaxonomies)
+          sqlFragment.query[TermTaxonomyRow].selectAll.mapAttempt(TermTaxonomyRow.toTermTaxonomies)
         }
       } yield termTaxos
 
