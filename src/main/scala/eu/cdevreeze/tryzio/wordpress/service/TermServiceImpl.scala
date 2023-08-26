@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package eu.cdevreeze.tryzio.wordpress.repo
+package eu.cdevreeze.tryzio.wordpress.service
 
 import eu.cdevreeze.tryzio.wordpress.model.*
+import eu.cdevreeze.tryzio.wordpress.repo.TermRepo
 import zio.*
 import zio.jdbc.*
 
