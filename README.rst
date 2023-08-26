@@ -6,7 +6,7 @@ Setup
 =====
 
 This project is about learning `ZIO`_ by doing. It also uses other dependencies, such as a Wordpress
-database, `jOOQ`_ etc.
+database.
 
 Before running console programs and tests, and even before compiling, a few steps are needed.
 The idea is to first start a MySQL Docker container, do a "docker exec" into it, and then use the mysql
@@ -46,9 +46,7 @@ Database content can be dumped into a dump file (for later imports) in a mysql s
 * mysqldump -u root -p wordpress > /tmp/wordpress-dump-2.sql
 
 Next, with the mysql-wordpress Docker container running, start an sbt session in a terminal with the
-root of this project as current directory. As part of the build, a jOOQ code generation task will
-run automatically. The generated Java source files represent database tables in jOOQ, and are used
-in parts of the code base.
+root of this project as current directory.
 
 Now we are set up to run programs, tests, etc. If we want to run Wordpress as well, against the
 running MySQL Docker container, enter the following command (in the same current directory as
@@ -61,15 +59,15 @@ Learning ZIO
 
 This project is about getting to know `ZIO`_ better (learning by doing).
 
-The ideas behind ZIO are well explained in `this overview of the background of ZIO`_. Central is
-the (FP) idea of exclusively using **pure functions** ("*DTP*": deterministic, total, pure). Counterexamples
-are functions the outputs of which partly depend on the current time (not deterministic), the *List.head*
-function that takes the head of the List (not total), and functions that depend on global state not passed
+ZIO is based on Functional Programming, applied to Scala.  The ideas behind FP in Scala are well explained
+in `easy-monads`_. Central is the (FP) idea of exclusively using **pure functions** ("*DTP*": deterministic, total, pure).
+Counterexamples are functions the outputs of which partly depend on the current time (not deterministic), the *List.head*
+function that takes the head of the List (not total), and functions that depend on or change global mutable state not passed
 as parameters (not pure).
 
 Also central is the idea of **functional effects**, which are *immutable* data structures modelling procedural
 effects (*programs as values*, or *program recipes* rather than running programs). Application programs then
-combine functional effects, and only "at the end" the resulting functional effect is run. These (functional)
+combine functional effects, and only "at the end" the resulting functional effect is run/interpreted. These (functional)
 programs can therefore be reasoned about very well, limiting the side-effects to the code that actually hits the
 "run button" on the combined functional effect.
 
@@ -92,7 +90,7 @@ not coming from a functional programming background. See for example `this artic
 Knowledge about ZIO does help a lot when dealing with code bases that use other functional effect
 systems like `Monix`_ (Task) or `Cats Effect`_.
 
-A nice `ZIO cheat sheet`_ exists for ZIO 1.X, and hopefully soon there will be one for ZIO 2.X.
+A nice `ZIO cheat sheet`_ exists for ZIO 2.X.
 
 For newcomers to functional effect systems (like me) it may take some getting used to the "mental model"
 of composing "*lazy effects*" that are only run at the end when the "run button" is hit. Not
@@ -170,7 +168,7 @@ the Servlet model with ZIO (or another functional effect system). The idea then 
 asynchronous. Given that mutable Servlet API objects like requests and responses must be "safely published" to other threads,
 the JMM (`Java memory model`_) indeed becomes quite important again.
 
-For more information on (asynchronous) servlets, see the `Servlet 3.0 specification`_. For more on best practices w.r.t. preventing
+For more information on (asynchronous) servlets, see the `Servlet 3.1 specification`_. For more on best practices w.r.t. preventing
 "blocking", see `Best Practice, Do not block threads`_ (for Monix instead of ZIO, although the ideas are portable to ZIO as well).
 
 This gets us to the following potential flow for handling a servlet request:
@@ -229,8 +227,8 @@ for its "volatile" semantics as per the Java memory model.
 The 3 different "mental models" mentioned above are:
 
 * Normal *synchronous*, *blocking* code. In this style each statement immediately does something (*eager evaluation*), they run sequentially after each other (if we ignore the JMM), and there is no intrinsic need to "chain" them using functions like *map* and *flatMap*
-* Scala *asynchronous* *Futures*. In other words, "wannabe values". They start immediately (*eagerly starting evaluation*), run asynchronously (so please do not wait for them to finish), and only when chaining them (map/flatMap) they run sequentially after each other
-* ZIO (or Monix or Cats Effect, etc.) *functional effects*. In other words, "lazy effects" or "recipes of programs" or "programs as values". They do not run at all when created/composed (*lazy evaluation*). Do not forget to chain them (map/flatMap) or else functional effects will get lost.
+* Scala *asynchronous* *Futures*. In other words, "wannabe values". They start immediately (*eagerly starting evaluation*), run asynchronously (so please do not wait for them to finish), and only when chaining them (map/flatMap) the intermediate results may depend on each other in the order of the "chain", but that does not necessarily mean that these Futures run sequentially after each other
+* ZIO (or Monix or Cats Effect, etc.) *functional effects*. In other words, "lazy effects" or "recipes of programs" or "programs as values". They do not run at all when created/composed (*lazy evaluation*). Do not forget to chain them (map/flatMap) or else functional effects will get lost when assembling the resulting functional effect. Effects can be thought of as executing in the order of the flatMap/map chain.
 
 Note that code may look quite similar, even if the "mental model" of its "effect" is quite different. Hence the explicit mentioning
 of these different ways to interpret code.
@@ -238,7 +236,7 @@ of these different ways to interpret code.
 The above is reasonably complicated, but what have we achieved (using an unnatural "stack")? At least the following:
 
 * Asynchronous request handling, exploiting async support in the Servlet model
-* The use of ZIO functional effects for maximum control over the actual work done during request handling, exploiting the safety and testability of FP
+* The use of ZIO functional effects for maximum control over the actual work done during request handling, exploiting the safety and testability of FP, and performance (and ZIO lightweight fibers) of the ZIO runtime
 * Prevention of memory visibility problems across threads involved in handling of one request
 
 This project contains client and server code that shows all this in action.
@@ -251,11 +249,12 @@ from Scala 3 code if we are careful with dependencies, the quite strict type che
 compiler did not accept the use of ScalatraServlet and FutureSupport as Servlet super-types together.
 Hence the absence of an experiment with Scalatra and ZIO combined.
 
-Of course I would rather use ZIO with zio-http instead.
+Of course I would rather use ZIO with zio-http instead. This strange mix between Servlets and ZIO is too cumbersome
+to be practical. Moreover, the ZIO ecosystem is quite rich (including zio-http), enabling a smooth "integrated"
+development experience, backed by an awesome ZIO runtime.
 
 .. _`ZIO`: https://zio.dev/
-.. _`jOOQ`: https://www.jooq.org/
-.. _`this overview of the background of ZIO`: https://zio.dev/version-1.x/overview/overview_background
+.. _`easy-monads`: https://degoes.net/articles/easy-monads
 .. _`this talk`: https://www.youtube.com/watch?v=qgfCmQ-2tW0
 .. _`this article about ZIO`: https://degoes.net/articles/zio-environment
 .. _`Monix`: https://monix.io/
@@ -264,7 +263,7 @@ Of course I would rather use ZIO with zio-http instead.
 .. _`pitfalls`: https://medium.com/wix-engineering/5-pitfalls-to-avoid-when-starting-to-work-with-zio-adefdc7d2d5c
 .. _`Servlet API`: https://docs.oracle.com/javaee/7/api/javax/servlet/Servlet.html
 .. _`JSR 133 FAQ`: https://www.cs.umd.edu/~pugh/java/memoryModel/jsr-133-faq.html
-.. _`Servlet 3.0 specification`: https://download.oracle.com/otn-pub/jcp/servlet-3.0-fr-eval-oth-JSpec/servlet-3_0-final-spec.pdf?AuthParam=1649020004_9b8b66cbc7374c0e8306cd6aa308d164
+.. _`Servlet 3.1 specification`: https://jcp.org/en/jsr/detail?id=340
 .. _`Java memory model`: https://www.cs.rice.edu/~johnmc/comp522/lecture-notes/COMP522-2019-Java-Memory-Model.pdf
 .. _`Best Practice, Do not block threads`: https://monix.io/docs/current/best-practices/blocking.html
 .. _`Scalatra`: https://scalatra.org/
