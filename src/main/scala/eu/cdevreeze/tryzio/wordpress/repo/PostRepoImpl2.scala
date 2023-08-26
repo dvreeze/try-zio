@@ -88,14 +88,14 @@ final class PostRepoImpl2() extends PostRepo:
          )
        """
 
-  private def mapPostRow(idx: Int, rs: ResultSet): PostRow =
+  private def mapPostRow(rs: ResultSet, idx: Int): PostRow =
     val postId: Long = rs.getLong(1)
     JsonDecoder[PostRow]
       .decodeJson(rs.getString(2))
       .fold(sys.error, identity)
       .ensuring(_.postId == postId)
 
-  private given JdbcDecoder[PostRow] = JdbcDecoder(rs => idx => mapPostRow(idx, rs))
+  private given JdbcDecoder[PostRow] = JdbcDecoder(mapPostRow.curried)
 
   def filterPosts(p: Post => Task[Boolean]): RIO[ZConnection, Seq[Post]] =
     // Inefficient

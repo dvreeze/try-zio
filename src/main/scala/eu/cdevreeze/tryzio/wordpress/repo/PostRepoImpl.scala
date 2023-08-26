@@ -68,7 +68,7 @@ final class PostRepoImpl() extends PostRepo:
          )
        """
 
-  private def mapPostRow(idx: Int, rs: ResultSet): PostRow =
+  private def mapPostRow(rs: ResultSet, idx: Int): PostRow =
     PostRow(
       postId = rs.getLong(1),
       postDate = Try(rs.getTimestamp(2).toInstant).getOrElse(Instant.EPOCH),
@@ -96,7 +96,7 @@ final class PostRepoImpl() extends PostRepo:
       postMeta = JsonDecoder[Map[String, String]].decodeJson(rs.getString(24)).getOrElse(Map.empty)
     )
 
-  private given JdbcDecoder[PostRow] = JdbcDecoder(rs => idx => mapPostRow(idx, rs))
+  private given JdbcDecoder[PostRow] = JdbcDecoder(mapPostRow.curried)
 
   def filterPosts(p: Post => Task[Boolean]): RIO[ZConnection, Seq[Post]] =
     // Inefficient

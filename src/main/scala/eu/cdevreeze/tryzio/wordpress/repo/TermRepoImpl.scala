@@ -63,10 +63,10 @@ final class TermRepoImpl() extends TermRepo:
          )
        """
 
-  private def mapTermRow(idx: Int, rs: ResultSet): TermRow =
+  private def mapTermRow(rs: ResultSet, idx: Int): TermRow =
     TermRow(id = rs.getLong(1), name = rs.getString(2), slug = rs.getString(3), termGroupOpt = zeroToNone(rs.getLong(4)))
 
-  private def mapTermTaxonomyRow(idx: Int, rs: ResultSet): TermTaxonomyRow =
+  private def mapTermTaxonomyRow(rs: ResultSet, idx: Int): TermTaxonomyRow =
     TermTaxonomyRow(
       termTaxonomyId = rs.getLong(1),
       termId = rs.getLong(2),
@@ -79,9 +79,9 @@ final class TermRepoImpl() extends TermRepo:
       count = rs.getInt(9)
     )
 
-  private given JdbcDecoder[TermRow] = JdbcDecoder(rs => idx => mapTermRow(idx, rs))
+  private given JdbcDecoder[TermRow] = JdbcDecoder(mapTermRow.curried)
 
-  private given JdbcDecoder[TermTaxonomyRow] = JdbcDecoder(rs => idx => mapTermTaxonomyRow(idx, rs))
+  private given JdbcDecoder[TermTaxonomyRow] = JdbcDecoder(mapTermTaxonomyRow.curried)
 
   def findAllTerms(): RIO[ZConnection, Seq[Term]] =
     for {
