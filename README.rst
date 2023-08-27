@@ -5,8 +5,7 @@ Try-ZIO
 Setup
 =====
 
-This project is about learning `ZIO`_ by doing. It also uses other dependencies, such as a Wordpress
-database.
+This project is about learning `ZIO`_ by doing. It has some dependencies, such as a Wordpress database.
 
 Before running console programs and tests, and even before compiling, a few steps are needed.
 The idea is to first start a MySQL Docker container, do a "docker exec" into it, and then use the mysql
@@ -62,8 +61,7 @@ This project is about getting to know `ZIO`_ better (learning by doing).
 ZIO is based on Functional Programming, applied to Scala.  The ideas behind FP in Scala are well explained
 in `easy-monads`_. Central is the (FP) idea of exclusively using **pure functions** ("*DTP*": deterministic, total, pure).
 Counterexamples are functions the outputs of which partly depend on the current time (not deterministic), the *List.head*
-function that takes the head of the List (not total), and functions that depend on or change global mutable state not passed
-as parameters (not pure).
+function that takes the head of the List (not total), and functions that change mutable state outside the function (not pure).
 
 Also central is the idea of **functional effects**, which are *immutable* data structures modelling procedural
 effects (*programs as values*, or *program recipes* rather than running programs). Application programs then
@@ -135,7 +133,8 @@ The second choice is well-known to Java web developers who use the Servlet API. 
 web containers such as Tomcat and Jetty, offers one request handling thread (from a container managed thread pool) per incoming HTTP request.
 It was common to keep most in-memory data local to the request handling thread, that is, to keep references to those (heap)
 object graphs local to the request handling thread. Such in-memory data would be short-lived, living no longer than the specific
-web request. This approach does scale, but requires a conscious effort of not leaking this data to other threads.
+web request. This approach does scale (to the extent that OS level threads scale), but requires a conscious effort of not leaking
+this data to other threads.
 
 Even in Servlet applications shared mutable state cannot always be avoided, whether long-lived data global to the web application
 or data limited to one user Session. For "global" data it was obvious that some kind of synchronisation was needed, but for
