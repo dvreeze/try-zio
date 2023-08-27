@@ -59,10 +59,11 @@ object ShowUseOfFutures:
     // The only change compared to the buggy version in ShowbuggyUseOfFutures: not creating these Futures immediately.
     def fetchCountFutures(): Seq[Future[Int]] = 0.until(numberOfSites).map(i => fetchCount(i))
 
-    for {
+    for
       _ <- checkCanFetchFuture
       counts <- Future.sequence(fetchCountFutures())
-    } yield counts.sum
+    yield counts.sum
+  end getTotalCount
 
   private def checkCanFetch(using unavailableSiteIndexOption: Option[Int]): Future[Unit] =
     Future {

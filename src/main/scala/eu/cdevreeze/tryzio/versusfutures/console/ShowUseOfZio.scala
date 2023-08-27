@@ -57,11 +57,12 @@ object ShowUseOfZio extends ZIOAppDefault:
     def fetchCountTasks(using unavailableSiteIndexOption: Option[Int]): Seq[Task[Int]] =
       0.until(numberOfSites).map(i => fetchCount(i))
 
-    for {
+    for
       given Option[Int] <- getUnavailableSiteIndexOption
       _ <- checkCanFetchTask
       counts <- ZIO.collectAllPar(fetchCountTasks)
-    } yield counts.sum
+    yield counts.sum
+  end getTotalCount
 
   private def checkCanFetch(using unavailableSiteIndexOption: Option[Int]): Task[Unit] =
     printLine("Start: checkCanFetch()") *>

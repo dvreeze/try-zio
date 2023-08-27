@@ -58,10 +58,11 @@ object ShowBuggyUseOfFutures:
     val checkCanFetchFuture: Future[Unit] = checkCanFetch
     val fetchCountFutures: Seq[Future[Int]] = 0.until(numberOfSites).map(i => fetchCount(i))
 
-    for {
+    for
       _ <- checkCanFetchFuture
       counts <- Future.sequence(fetchCountFutures)
-    } yield counts.sum
+    yield counts.sum
+  end getTotalCount
 
   private def checkCanFetch(using unavailableSiteIndexOption: Option[Int]): Future[Unit] =
     Future {
