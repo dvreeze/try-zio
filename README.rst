@@ -113,6 +113,7 @@ Combining ZIO with the `Servlet API`_ is not a natural match. For example:
 * ZIO is flexible in combining "blocking" and asynchronous code, while the Servlet API is quite rigid in how (container managed) request handling threads are used
 * The ZIO runtime uses *green threads*, called *fibers*, which are far more lightweight than Java's OS level threads that are used directly by servlets
 * ZIO, especially when combined with zio-http, can be used to create quite lightweight HTTP server functionality, while the Servlet API more or less requires the use of WAR files
+* Regular servlets (so not the asynchronous ones) use one JVM thread per HTTP request, which is often exploited by the use of *ThreadLocal*, which does not work in ZIO, and which ZIO does not need (with safe alternatives such as *FiberRef*)
 
 Given that such combinations of ZIO (or an alternative) with servlets still do occur in practice, it might be a good idea to explore that, and to come up with pitfalls
 and good practices.
