@@ -25,7 +25,7 @@ import scala.util.Random
 import scala.util.chaining.scalaUtilChainingOps
 
 /**
- * Shows bug fix for buggy use of Scala Futures. It's still not a pretty program that can easily be reasoned about.
+ * Shows bug fix for buggy use of Scala Futures.
  *
  * @author
  *   Chris de Vreeze
@@ -56,7 +56,7 @@ object ShowUseOfFutures:
     // Creating Futures that run in parallel, but the first one ends before deciding to start the other ones.
     // Each created Future (but the first one) may start running immediately, but is created after the first one finishes.
     val checkCanFetchFuture: Future[Unit] = checkCanFetch
-    // The only change compared to the buggy version in ShowbuggyUseOfFutures: not creating these Futures immediately.
+    // The main change compared to the buggy version in ShowbuggyUseOfFutures: not creating these Futures immediately.
     def fetchCountFutures(): Seq[Future[Int]] = 0.until(numberOfSites).map(i => fetchCount(i))
 
     for
@@ -70,7 +70,10 @@ object ShowUseOfFutures:
       println("Start: checkCanFetch()")
       Thread.sleep(250L)
       println(s"Optional unavailable site index: $unavailableSiteIndexOption")
-      unavailableSiteIndexOption.foreach(i => throw new RuntimeException(s"Site $i is unavailable"))
+    }.flatMap { _ =>
+      unavailableSiteIndexOption
+        .map(i => Future.failed(new RuntimeException(s"Site $i is unavailable")))
+        .getOrElse(Future.successful(()))
     }
 
   private def fetchCount(siteIndex: Int)(using unavailableSiteIndexOption: Option[Int]): Future[Int] =
