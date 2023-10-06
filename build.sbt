@@ -29,7 +29,7 @@ ThisBuild / publishTo := {
 ThisBuild / pomExtra := pomData
 ThisBuild / pomIncludeRepository := { _ => false }
 
-val zioVersion = "2.0.17"
+val zioVersion = "2.0.18"
 val zioJsonVersion = "0.6.2"
 val zioHttpVersion = "3.0.0-RC2"
 val zioConfigVersion = "4.0.0-RC16"
