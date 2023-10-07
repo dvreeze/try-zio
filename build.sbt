@@ -56,6 +56,8 @@ ThisBuild / libraryDependencies += "dev.zio" %% "zio-schema" % zioSchemaVersion
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-schema-json" % zioSchemaVersion
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-schema-derivation" % zioSchemaVersion
 
+ThisBuild / libraryDependencies += "com.softwaremill.sttp.client4" %% "zio" % "4.0.0-M5"
+
 ThisBuild / libraryDependencies += "javax.servlet" % "servlet-api" % "3.0-alpha-1" % Provided
 
 ThisBuild / libraryDependencies += "org.apache.tomcat.embed" % "tomcat-embed-core" % "10.1.8"

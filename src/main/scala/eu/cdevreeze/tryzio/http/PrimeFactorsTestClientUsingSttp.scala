@@ -16,18 +16,20 @@
 
 package eu.cdevreeze.tryzio.http
 
-import java.net.URI
-
+import sttp.client4.*
+import sttp.client4.httpclient.zio.HttpClientZioBackend
+import sttp.client4.httpclient.zio.SttpClient
+import sttp.client4.httpclient.zio.send
+import sttp.model.Uri
 import zio.*
-import zio.http.*
 
 /**
- * HTTP client program simultaneously querying the server for prime factors of multiple numbers, using ZIO and zio-http.
+ * HTTP client program simultaneously querying the server for prime factors of multiple numbers, using ZIO and sttp.
  *
  * @author
  *   Chris de Vreeze
  */
-object PrimeFactorsTestClient extends ZIOAppDefault:
+object PrimeFactorsTestClientUsingSttp extends ZIOAppDefault:
 
   private case class AppConfig(host: String, port: Int, minNumber: BigInt, maxNumber: BigInt)
 
@@ -68,7 +70,7 @@ object PrimeFactorsTestClient extends ZIOAppDefault:
             getUrl(cfg.host, cfg.port, number)
               .flatMap(getResponseAsString)
               .tap(s => ZIO.logInfo(s))
-              .provide(Client.default)
+              .provideLayer(HttpClientZioBackend.layer())
           }
           .withParallelism(1.max(numberOfProcessors / 2))
           .fork
@@ -78,14 +80,16 @@ object PrimeFactorsTestClient extends ZIOAppDefault:
     getStringResponses.tapError(t => ZIO.logError(t.getMessage)).orDie.exitCode
   end run
 
-  private def getResponseAsString(url: URI): RIO[Client, String] =
+  private def getResponseAsString(url: Uri): RIO[SttpClient, String] =
     for {
-      headers <- ZIO.attempt(Headers(Header.Host(url.getHost)))
-      response <- Client.request(url = url.toString, headers = headers)
-      content <- response.body.asString
-    } yield content
+      request <- getRequest(url)
+      response <- send(request).tapError(t => ZIO.logError(s"Error sending request: ${t.getMessage}"))
+    } yield response.body
 
-  private def getUrl(host: String, port: Int, number: BigInt): Task[URI] =
-    ZIO.attempt { URI.create(s"http://$host:$port/primeFactors/$number") }
+  private def getRequest(url: Uri): Task[Request[String]] =
+    ZIO.attempt { basicRequest.get(url).response(asStringAlways) }
 
-end PrimeFactorsTestClient
+  private def getUrl(host: String, port: Int, number: BigInt): Task[Uri] =
+    ZIO.attempt { uri"http://$host:$port/primeFactors/$number" }
+
+end PrimeFactorsTestClientUsingSttp
