@@ -7,6 +7,9 @@ Setup
 
 This project is about learning `ZIO`_ by doing. It has some dependencies, such as a Wordpress database.
 
+Below Docker is used, and it is assumed that Docker commands can be executed without root access. For that,
+the current user must have been made a member of the "docker" group ("sudo usermod -aG docker <user>", then log out and in).
+
 Before running console programs and tests, and even before compiling, a few steps are needed.
 The idea is to first start a MySQL Docker container, do a "docker exec" into it, and then use the mysql
 client to create and fill the Wordpress database:
@@ -15,11 +18,11 @@ client to create and fill the Wordpress database:
 
 Next run some Docker commands (where the volumes must be created only once, and never removed):
 
-* sudo docker volume create mysql-data-volume
-* sudo docker volume create wordpress-www-volume
-* sudo docker run --name mysql-wordpress -e MYSQL_ROOT_PASSWORD=root -d -p 3306:3306 -v mysql-data-volume:/var/lib/mysql mysql:latest
-* sudo docker cp ./wordpress-dump.sql mysql-wordpress:/tmp/wordpress-dump.sql
-* sudo docker exec -it mysql-wordpress bash
+* docker volume create mysql-data-volume
+* docker volume create wordpress-www-volume
+* docker run --name mysql-wordpress -e MYSQL_ROOT_PASSWORD=root -d -p 3306:3306 -v mysql-data-volume:/var/lib/mysql mysql:latest
+* docker cp ./wordpress-dump.sql mysql-wordpress:/tmp/wordpress-dump.sql
+* docker exec -it mysql-wordpress bash
 
 Inside that bash session, enter the following commands (entering the password when prompted):
 
@@ -51,7 +54,7 @@ Now we are set up to run programs, tests, etc. If we want to run Wordpress as we
 running MySQL Docker container, enter the following command (in the same current directory as
 where we started MySQL):
 
-* sudo docker run -e WORDPRESS_DB_USER=root -e WORDPRESS_DB_PASSWORD=root --name wordpress --link mysql-wordpress:mysql -p 8080:80 -v wordpress-www-volume:/var/www/html -d wordpress
+* docker run -e WORDPRESS_DB_USER=root -e WORDPRESS_DB_PASSWORD=root --name wordpress --link mysql-wordpress:mysql -p 8080:80 -v wordpress-www-volume:/var/www/html -d wordpress
 
 Learning ZIO
 ============
