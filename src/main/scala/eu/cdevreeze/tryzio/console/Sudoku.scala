@@ -144,16 +144,12 @@ object Sudoku extends ZIOAppDefault:
         .filter(subgridAt(rowIdx, colIdx).remainingNumbers.toSet)
 
     def findNextUnfilledCellLocation: Option[GridCellLocation] =
-      unfilledGridCellLocations.sortBy(loc => cellScore(loc.rowIdx, loc.colIdx)).headOption
+      unfilledGridCellLocations.sortBy { loc =>
+        remainingNumbersAt(loc.rowIdx, loc.colIdx).size
+      }.headOption
 
     def show: String =
       rows.map(_.show).mkString("\n")
-
-    // Lower score is better
-    private def cellScore(rowIdx: Int, colIdx: Int): Int =
-      rows(rowIdx).remainingNumbers.size +
-        columns(colIdx).remainingNumbers.size +
-        subgridAt(rowIdx, colIdx).remainingNumbers.size
 
   object Grid:
 
