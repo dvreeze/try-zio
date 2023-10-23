@@ -188,7 +188,7 @@ object Sudoku extends ZIOAppDefault:
     // No resulting grids means there are no solutions. If the currentGrid is a full solution, it is returned.
     for {
       _ <- ZIO.logInfo(s"Running step for grid:\n${currentGrid.show}")
-      _ <- ZIO.fromTry(scala.util.Try(require(currentGrid.isValid, s"Not a valid grid:\n${currentGrid.show}")))
+      _ <- ZIO.attempt { require(currentGrid.isValid, s"Not a valid grid:\n${currentGrid.show}") }
       nextGrids <-
         if currentGrid.isFilled then ZIO.succeed(Seq(currentGrid))
         else
