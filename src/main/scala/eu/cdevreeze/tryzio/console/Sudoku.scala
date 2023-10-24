@@ -28,20 +28,29 @@ import zio.*
  */
 object Sudoku extends ZIOAppDefault:
 
+  private val numberOfRows = 9
+  private val numberOfColumns = numberOfRows
+  private val numberOfSubgrids = numberOfRows
+
+  private val numberOfSubgridRows = 3
+  private val numberOfSubgridColumns = numberOfSubgridRows
+
+  private val maxCellValue = 9
+
   final case class GridCellLocation(rowIdx: Int, colIdx: Int):
-    require(rowIdx >= 0 && rowIdx < 9)
-    require(colIdx >= 0 && colIdx < 9)
+    require(rowIdx >= 0 && rowIdx < numberOfRows)
+    require(colIdx >= 0 && colIdx < numberOfColumns)
 
   final case class Cell(valueOption: Option[Int]):
-    require(valueOption.forall(d => d >= 1 && d <= 9))
+    require(valueOption.forall(d => d >= 1 && d <= maxCellValue))
 
     def setValue(value: Int): Cell = Cell(Some(value))
 
   final case class SubgridRow(cells: Seq[Cell]):
-    require(cells.sizeIs == 3)
+    require(cells.sizeIs == numberOfSubgridColumns)
 
   final case class Subgrid(rows: Seq[SubgridRow]):
-    require(rows.sizeIs == 3)
+    require(rows.sizeIs == numberOfSubgridRows)
 
     def isValid: Boolean =
       rows.flatMap(_.cells).flatMap(_.valueOption).pipe(values => values.size == values.distinct.size)
@@ -50,12 +59,12 @@ object Sudoku extends ZIOAppDefault:
 
     def remainingNumbers: Seq[Int] =
       // Note that the subgrid can be invalid
-      (1 to 9).diff(rows.flatMap(_.cells).flatMap(_.valueOption))
+      (1 to maxCellValue).diff(rows.flatMap(_.cells).flatMap(_.valueOption))
 
     def show: String = rows.flatMap(_.cells).map(_.valueOption.getOrElse(0)).mkString(" ")
 
   final case class Row(cells: Seq[Cell]):
-    require(cells.sizeIs == 9)
+    require(cells.sizeIs == numberOfColumns)
 
     def isValid: Boolean = cells.flatMap(_.valueOption).pipe(values => values.size == values.distinct.size)
 
@@ -63,7 +72,7 @@ object Sudoku extends ZIOAppDefault:
 
     def remainingNumbers: Seq[Int] =
       // Note that the row can be invalid
-      (1 to 9).diff(cells.flatMap(_.valueOption))
+      (1 to maxCellValue).diff(cells.flatMap(_.valueOption))
 
     def setCellValue(colIdx: Int, value: Int): Row =
       cells.updated(colIdx, cells(colIdx).setValue(value)).pipe(Row.apply)
@@ -73,12 +82,12 @@ object Sudoku extends ZIOAppDefault:
   object Row:
 
     def fromNumbers(numbers: Seq[Int]): Row =
-      require(numbers.sizeIs == 9)
-      require(numbers.forall(n => n >= 0 && n <= 9))
+      require(numbers.sizeIs == numberOfColumns)
+      require(numbers.forall(n => n >= 0 && n <= maxCellValue))
       Row(numbers.map(n => Option(n).filter(_ >= 1)).map(Cell.apply))
 
   final case class Column(cells: Seq[Cell]):
-    require(cells.sizeIs == 9)
+    require(cells.sizeIs == numberOfRows)
 
     def isValid: Boolean = cells.flatMap(_.valueOption).pipe(values => values.size == values.distinct.size)
 
@@ -86,33 +95,36 @@ object Sudoku extends ZIOAppDefault:
 
     def remainingNumbers: Seq[Int] =
       // Note that the column can be invalid
-      (1 to 9).diff(cells.flatMap(_.valueOption))
+      (1 to maxCellValue).diff(cells.flatMap(_.valueOption))
 
     def show: String = cells.map(_.valueOption.getOrElse(0)).mkString(" ")
 
   final case class Grid(rows: Seq[Row]):
-    require(rows.sizeIs == 9)
+    require(rows.sizeIs == numberOfRows)
 
-    def columns: Seq[Column] = for { i <- 0 until 9 } yield Column(rows.map(r => r.cells(i)))
+    def columns: Seq[Column] = for { i <- 0 until numberOfColumns } yield Column(rows.map(r => r.cells(i)))
 
     def cell(rowIdx: Int, colIdx: Int): Cell = rows(rowIdx).cells(colIdx)
 
     def subgrids: Seq[Subgrid] =
       for {
-        r <- Seq(0, 3, 6)
-        c <- Seq(0, 3, 6)
+        r <- (0 until numberOfRows).filter(_ % numberOfSubgridRows == 0)
+        c <- (0 until numberOfColumns).filter(_ % numberOfSubgridColumns == 0)
       } yield subgridAt(r, c)
 
     def subgridAt(rowIdx: Int, colIdx: Int): Subgrid =
-      val startRow: Int = 3 * (rowIdx / 3)
-      val startCol: Int = 3 * (colIdx / 3)
-      Subgrid(
-        Seq(
-          SubgridRow(Seq(cell(startRow, startCol), cell(startRow, startCol + 1), cell(startRow, startCol + 2))),
-          SubgridRow(Seq(cell(startRow + 1, startCol), cell(startRow + 1, startCol + 1), cell(startRow + 1, startCol + 2))),
-          SubgridRow(Seq(cell(startRow + 2, startCol), cell(startRow + 2, startCol + 1), cell(startRow + 2, startCol + 2)))
-        )
-      )
+      val startRowIdx: Int = numberOfSubgridRows * (rowIdx / numberOfSubgridRows)
+      val startColIdx: Int = numberOfSubgridColumns * (colIdx / numberOfSubgridColumns)
+
+      (startRowIdx until (startRowIdx + numberOfSubgridRows))
+        .map { r =>
+          (startColIdx until (startColIdx + numberOfSubgridColumns))
+            .map { c =>
+              cell(r, c)
+            }
+            .pipe(SubgridRow.apply)
+        }
+        .pipe(Subgrid.apply)
 
     def isValid: Boolean =
       rows.forall(_.isValid) && columns.forall(_.isValid) && subgrids.forall(_.isValid)
@@ -127,8 +139,8 @@ object Sudoku extends ZIOAppDefault:
 
     def unfilledGridCellLocations: Seq[GridCellLocation] =
       for {
-        r <- 0 until 9
-        c <- 0 until 9
+        r <- 0 until numberOfRows
+        c <- 0 until numberOfColumns
         if cell(r, c).valueOption.isEmpty
       } yield GridCellLocation(r, c)
 
@@ -154,10 +166,10 @@ object Sudoku extends ZIOAppDefault:
   object Grid:
 
     def fromNumbers(numbers: Seq[Int]): Grid =
-      require(numbers.sizeIs == 9 * 9, s"Expected 9 * 9 numbers (0 for unfilled cells)")
-      require(numbers.forall(n => n >= 0 && n <= 9), s"Expected only integers >= 0 and <= 9")
+      require(numbers.sizeIs == numberOfRows * numberOfColumns, s"Expected $numberOfRows * $numberOfColumns numbers (0 for unfilled cells)")
+      require(numbers.forall(n => n >= 0 && n <= maxCellValue), s"Expected only integers >= 0 and <= $maxCellValue")
 
-      numbers.grouped(9).toSeq.map(row => Row.fromNumbers(row)).pipe(rows => Grid(rows))
+      numbers.grouped(numberOfColumns).toSeq.map(row => Row.fromNumbers(row)).pipe(rows => Grid(rows))
 
   end Grid
 
@@ -182,7 +194,10 @@ object Sudoku extends ZIOAppDefault:
     } yield result
 
   private def runNextStep(currentGrids: Seq[Grid]): Task[Seq[Grid]] =
-    ZIO.logInfo("Running next step") *> ZIO.collectAll(currentGrids.map(runNextStep(_))).mapAttempt(_.flatten)
+    ZIO.logInfo("Running next step") *>
+      ZIO
+        .collectAll(currentGrids.map(runNextStep(_)))
+        .mapAttempt(_.flatten.distinct)
 
   private def runNextStep(currentGrid: Grid): Task[Seq[Grid]] =
     // No resulting grids means there are no solutions. If the currentGrid is a full solution, it is returned.
