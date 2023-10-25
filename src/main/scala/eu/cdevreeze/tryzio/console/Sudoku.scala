@@ -215,11 +215,17 @@ object Sudoku extends ZIOAppDefault:
                 .remainingNumbersAt(nextLoc.rowIdx, nextLoc.colIdx)
                 .filter(n => currentGrid.canSetCellValue(nextLoc.rowIdx, nextLoc.colIdx, n))
             }
-            _ <- ZIO.logInfo(s"Remaining numbers that can be filled in at that location: ${remainingNumbers.mkString(", ")}")
+            _ <- ZIO.logInfo(remainingNumbersLogMessage(remainingNumbers))
             grids <- ZIO
               .attempt { remainingNumbers.map(n => currentGrid.setCellValue(nextLoc.rowIdx, nextLoc.colIdx, n)) }
               .mapAttempt(_.distinct)
           } yield grids
     } yield nextGrids
+
+  private def remainingNumbersLogMessage(remainingNumbers: Seq[Int]): String =
+    remainingNumbers.size match
+      case 0 => s"There are no remaining numbers to fill in at that location"
+      case 1 => s"The single remaining number to fill in at that location: ${remainingNumbers.head}"
+      case _ => s"Remaining numbers that can be filled in at that location: ${remainingNumbers.mkString(", ")}"
 
 end Sudoku
