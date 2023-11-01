@@ -16,20 +16,18 @@
 
 package eu.cdevreeze.tryzio.jdbc
 
-import java.io.File
-import java.sql.ResultSet
-
-import scala.util.Using
-import scala.util.chaining.*
-
 import zio.*
 import zio.Console.printLine
 import zio.config.*
 import zio.config.typesafe.*
 import zio.jdbc.*
 import zio.test.Assertion.*
-import zio.test.ZIOSpecDefault
-import zio.test.assert
+import zio.test.{ZIOSpecDefault, assert}
+
+import java.io.File
+import java.sql.ResultSet
+import scala.util.Using
+import scala.util.chaining.*
 
 /**
  * JDBC support test, against MySQL Docker container. Currently the test runs only against an already running MySQL Docker container, and

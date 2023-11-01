@@ -16,19 +16,16 @@
 
 package eu.cdevreeze.tryzio.wordpress.repo
 
-import java.sql.Connection
-import java.sql.ResultSet
-import java.time.Instant
-
-import scala.util.Try
-import scala.util.Using
-import scala.util.chaining.*
-
 import eu.cdevreeze.tryzio.wordpress.model.*
 import eu.cdevreeze.tryzio.wordpress.repo.PostRepoImpl.PostRow
 import zio.*
 import zio.jdbc.*
 import zio.json.*
+
+import java.sql.{Connection, ResultSet}
+import java.time.Instant
+import scala.util.{Try, Using}
+import scala.util.chaining.*
 
 /**
  * Concrete repository of posts.

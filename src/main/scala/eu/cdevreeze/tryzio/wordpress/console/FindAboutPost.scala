@@ -16,12 +16,12 @@
 
 package eu.cdevreeze.tryzio.wordpress.console
 
-import java.sql.ResultSet
-
 import zio.*
 import zio.Console.*
 import zio.jdbc.*
 import zio.json.*
+
+import java.sql.ResultSet
 
 /**
  * Very simple example program finding the "about" post in the Wordpress database. It uses the ***zio-jdbc*** library.

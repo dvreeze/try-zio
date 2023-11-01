@@ -16,12 +16,12 @@
 
 package eu.cdevreeze.tryzio.wordpress.console
 
-import java.io.File
-
 import zio.*
 import zio.config.*
 import zio.config.typesafe.*
 import zio.jdbc.*
+
+import java.io.File
 
 /**
  * Connection pool ZLayer.

@@ -18,19 +18,11 @@ package eu.cdevreeze.tryzio.primes
 
 import eu.cdevreeze.tryzio.primes.Primes
 import eu.cdevreeze.tryzio.primes.Primes.PrimeFactors
-import zio.Random
-import zio.Task
-import zio.UIO
-import zio.ZIO
+import zio.{Random, Task, UIO, ZIO}
 import zio.stream.ZStream
 import zio.test.Assertion.*
-import zio.test.Gen
-import zio.test.Sample
-import zio.test.ZIOSpecDefault
-import zio.test.assert
-import zio.test.check
 import zio.test.magnolia.*
-import zio.test.suite
+import zio.test.{Gen, Sample, ZIOSpecDefault, assert, check, suite}
 
 /**
  * Primes test.

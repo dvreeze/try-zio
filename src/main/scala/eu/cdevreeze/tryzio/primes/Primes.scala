@@ -16,9 +16,9 @@
 
 package eu.cdevreeze.tryzio.primes
 
-import scala.annotation.tailrec
-
 import zio.*
+
+import scala.annotation.tailrec
 
 /**
  * Finds prime numbers smaller than a given number. Naively implemented.

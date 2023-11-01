@@ -16,16 +16,14 @@
 
 package eu.cdevreeze.tryzio.http
 
-import java.io.IOException
-
-import scala.util.Try
-import scala.util.chaining.*
-
 import eu.cdevreeze.tryzio.primes.Primes
 import zio.*
 import zio.http.*
-import zio.metrics.Metric
-import zio.metrics.MetricLabel
+import zio.metrics.{Metric, MetricLabel}
+
+import java.io.IOException
+import scala.util.Try
+import scala.util.chaining.*
 
 /**
  * HTTP server exposing prime number queries, using ZIO and zio-http.

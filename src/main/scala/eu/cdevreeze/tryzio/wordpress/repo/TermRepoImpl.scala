@@ -16,16 +16,13 @@
 
 package eu.cdevreeze.tryzio.wordpress.repo
 
-import java.sql.Connection
-import java.sql.ResultSet
-
-import scala.util.chaining.*
-
 import eu.cdevreeze.tryzio.wordpress.model.*
-import eu.cdevreeze.tryzio.wordpress.repo.TermRepoImpl.TermRow
-import eu.cdevreeze.tryzio.wordpress.repo.TermRepoImpl.TermTaxonomyRow
+import eu.cdevreeze.tryzio.wordpress.repo.TermRepoImpl.{TermRow, TermTaxonomyRow}
 import zio.*
 import zio.jdbc.*
+
+import java.sql.{Connection, ResultSet}
+import scala.util.chaining.*
 
 /**
  * Concrete repository of terms and term taxonomies.

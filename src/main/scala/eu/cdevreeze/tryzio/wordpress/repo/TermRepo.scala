@@ -16,8 +16,7 @@
 
 package eu.cdevreeze.tryzio.wordpress.repo
 
-import eu.cdevreeze.tryzio.wordpress.model.Term
-import eu.cdevreeze.tryzio.wordpress.model.TermTaxonomy
+import eu.cdevreeze.tryzio.wordpress.model.{Term, TermTaxonomy}
 import zio.*
 import zio.jdbc.ZConnection
 

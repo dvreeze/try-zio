@@ -16,9 +16,9 @@
 
 package eu.cdevreeze.tryzio.console
 
-import scala.util.chaining.*
-
 import zio.*
+
+import scala.util.chaining.*
 
 /**
  * Sudoku solver. Pass the input as 9 times 9 numbers between 0 and 9, with 0 meaning empty.

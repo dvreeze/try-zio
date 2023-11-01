@@ -16,12 +16,12 @@
 
 package eu.cdevreeze.tryzio.wordpress.console
 
-import java.sql.ResultSet
-
 import zio.*
 import zio.Console.*
 import zio.jdbc.*
 import zio.json.*
+
+import java.sql.ResultSet
 
 /**
  * Much like FindAboutPost, but using lookups instead of "dependency injection". This approach is less desirable than dependency injection,

@@ -16,11 +16,11 @@
 
 package eu.cdevreeze.tryzio.http.legacy
 
-import java.io.File
-
 import org.apache.catalina.LifecycleException
 import org.apache.catalina.connector.Connector
 import org.apache.catalina.startup.Tomcat
+
+import java.io.File
 
 /**
  * Embedded Tomcat server running the PrimeFactorServlet.

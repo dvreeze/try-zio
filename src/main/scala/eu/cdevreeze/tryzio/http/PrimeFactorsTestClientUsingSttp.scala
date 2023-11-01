@@ -17,9 +17,7 @@
 package eu.cdevreeze.tryzio.http
 
 import sttp.client4.*
-import sttp.client4.httpclient.zio.HttpClientZioBackend
-import sttp.client4.httpclient.zio.SttpClient
-import sttp.client4.httpclient.zio.send
+import sttp.client4.httpclient.zio.{HttpClientZioBackend, SttpClient, send}
 import sttp.model.Uri
 import zio.*
 

@@ -16,10 +16,10 @@
 
 package eu.cdevreeze.tryzio.versusfutures.console
 
-import java.net.URI
-
 import zio.*
 import zio.Console.*
+
+import java.net.URI
 
 /**
  * Shows use of ZIO replacing the use of Scala Futures. We can create ZIO functional effects when and where we want, and combine them

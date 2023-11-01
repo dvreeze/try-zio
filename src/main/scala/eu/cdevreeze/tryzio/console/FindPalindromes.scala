@@ -16,14 +16,12 @@
 
 package eu.cdevreeze.tryzio.console
 
-import java.io.File
-
-import scala.io.Codec
-import scala.io.Source
-
 import zio.*
 import zio.Console.*
 import zio.stream.*
+
+import java.io.File
+import scala.io.{Codec, Source}
 
 /**
  * Finds palindromes in a file of words, using ZIO (streams). The program expects the input file path as program argument.

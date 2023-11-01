@@ -16,20 +16,16 @@
 
 package eu.cdevreeze.tryzio.wordpress.repo
 
-import java.sql.Connection
-import java.sql.ResultSet
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneId
-
-import scala.util.Try
-import scala.util.chaining.*
-
 import eu.cdevreeze.tryzio.wordpress.model.*
 import eu.cdevreeze.tryzio.wordpress.repo.PostRepoImpl2.PostRow
 import zio.*
 import zio.jdbc.*
 import zio.json.*
+
+import java.sql.{Connection, ResultSet}
+import java.time.{Instant, LocalDateTime, ZoneId}
+import scala.util.Try
+import scala.util.chaining.*
 
 /**
  * Alternative concrete repository of posts, exploiting JSON "rows" as query results.

@@ -16,10 +16,10 @@
 
 package eu.cdevreeze.tryzio.http
 
-import java.net.URI
-
 import zio.*
 import zio.http.*
+
+import java.net.URI
 
 /**
  * HTTP client program simultaneously querying the server for prime factors of multiple numbers, using ZIO and zio-http.

@@ -16,11 +16,9 @@
 
 package eu.cdevreeze.tryzio.wordpress
 
-import java.time.Instant
-
-import scala.annotation.targetName
-
 import zio.json.*
+
+import java.time.Instant
 
 /**
  * Model of (part of) Wordpress database data.

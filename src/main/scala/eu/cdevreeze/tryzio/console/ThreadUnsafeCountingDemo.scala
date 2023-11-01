@@ -16,12 +16,11 @@
 
 package eu.cdevreeze.tryzio.console
 
-import java.util.concurrent.atomic.AtomicInteger
-
-import scala.util.chaining.*
-
 import zio.*
 import zio.Console.*
+
+import java.util.concurrent.atomic.AtomicInteger
+import scala.util.chaining.*
 
 /**
  * This program shows thread unsafety issues of a counter and their mitigation. The thread unsafety issues of a naive counter may be due to

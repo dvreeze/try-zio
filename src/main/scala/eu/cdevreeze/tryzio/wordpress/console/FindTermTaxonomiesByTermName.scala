@@ -17,8 +17,7 @@
 package eu.cdevreeze.tryzio.wordpress.console
 
 import eu.cdevreeze.tryzio.wordpress.repo.TermRepoImpl
-import eu.cdevreeze.tryzio.wordpress.service.TermService
-import eu.cdevreeze.tryzio.wordpress.service.TermServiceImpl
+import eu.cdevreeze.tryzio.wordpress.service.{TermService, TermServiceImpl}
 import zio.*
 import zio.Console.*
 import zio.json.*

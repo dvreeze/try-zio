@@ -16,27 +16,20 @@
 
 package eu.cdevreeze.tryzio.http.legacy
 
-import java.io.IOException
-import java.io.PrintWriter
-import java.net.URI
-import java.nio.file.FileSystems
-import java.nio.file.Path
-import java.util.concurrent.atomic.AtomicReference
+import eu.cdevreeze.tryzio.primes.Primes
+import jakarta.servlet.{AsyncContext, ServletException}
+import jakarta.servlet.annotation.WebServlet
+import jakarta.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
+import zio.*
 
+import java.io.{IOException, PrintWriter}
+import java.net.URI
+import java.nio.file.{FileSystems, Path}
+import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.concurrent.duration.*
-import scala.concurrent.duration.Duration as SDuration
+import scala.concurrent.duration.{Duration as SDuration, *}
 import scala.util.chaining.*
-
-import eu.cdevreeze.tryzio.primes.Primes
-import jakarta.servlet.AsyncContext
-import jakarta.servlet.ServletException
-import jakarta.servlet.annotation.WebServlet
-import jakarta.servlet.http.HttpServlet
-import jakarta.servlet.http.HttpServletRequest
-import jakarta.servlet.http.HttpServletResponse
-import zio.*
 
 /**
  * Servlet supporting prime factor queries, using the unlikely combination of ZIO and (async) servlets (on Tomcat/Jetty).

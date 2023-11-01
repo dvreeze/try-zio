@@ -17,8 +17,7 @@
 package eu.cdevreeze.tryzio.wordpress.console
 
 import eu.cdevreeze.tryzio.wordpress.repo.PostRepoImpl
-import eu.cdevreeze.tryzio.wordpress.service.PostService
-import eu.cdevreeze.tryzio.wordpress.service.PostServiceImpl
+import eu.cdevreeze.tryzio.wordpress.service.{PostService, PostServiceImpl}
 import zio.*
 import zio.Console.*
 import zio.json.*

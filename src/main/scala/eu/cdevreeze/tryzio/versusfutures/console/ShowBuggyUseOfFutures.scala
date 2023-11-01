@@ -17,7 +17,6 @@
 package eu.cdevreeze.tryzio.versusfutures.console
 
 import java.net.URI
-
 import scala.concurrent.*
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.*
