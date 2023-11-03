@@ -40,4 +40,6 @@ services:
 
 volumes:
   wordpress:
+    name: wordpress-volume
   db:
+    name: wordpress-mysql-volume
