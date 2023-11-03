@@ -1,0 +1,41 @@
+version: '3.3'
+
+# Look at https://www.baeldung.com/ops/docker-mysql-container
+
+services:
+
+  wordpress:
+    image: wordpress
+    restart: always
+    ports:
+      - "8080:80"
+    depends_on:
+      - "db"
+    links:
+      - db
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: ${MYSQL_USER}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
+      WORDPRESS_DB_NAME: ${MYSQL_DATABASE}
+    volumes:
+      - wordpress:/var/www/html
+
+  db:
+    build:
+      context: docker
+      dockerfile: ../db.Dockerfile
+      args:
+        - MYSQL_DATABASE=${MYSQL_DATABASE}
+        - MYSQL_USER=${MYSQL_USER}
+        - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+        - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+    restart: always
+    volumes:
+      - db:/var/lib/mysql
+    ports:
+      - "${MYSQL_PORT}:3306"
+
+volumes:
+  wordpress:
+  db:

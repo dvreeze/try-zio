@@ -9,52 +9,48 @@ This project is about learning `ZIO`_ by doing. It has some dependencies, such a
 
 Below Docker is used, and it is assumed that Docker commands can be executed without root access. For that,
 the current user must have been made a member of the "docker" group ("sudo usermod -aG docker <user>", then log out and in).
+When using Docker Desktop, this should already be the case out of the box.
 
-Before running console programs and tests, and even before compiling, a few steps are needed.
-The idea is to first start a MySQL Docker container, do a "docker exec" into it, and then use the mysql
-client to create and fill the Wordpress database:
+Before running console programs and tests, use "docker-compose" to create Docker containers for wordpress and its database
+(where the passwords should be much stronger than in this example):
 
-* First pick up the wordpress-dump.sql file, and "cd" to the containing directory
+.. code-block:: bash
 
-Next run some Docker commands (where the volumes must be created only once, and never removed):
+    export MYSQL_PORT=3306
+    export MYSQL_ROOT_PASSWORD=root
+    export MYSQL_PASSWORD=wordpress
+    export MYSQL_USER=wordpress
+    export MYSQL_DATABASE=wordpress
 
-* docker volume create mysql-data-volume
-* docker volume create wordpress-www-volume
-* docker run --name mysql-wordpress -e MYSQL_ROOT_PASSWORD=root -d -p 3306:3306 -v mysql-data-volume:/var/lib/mysql mysql:latest
-* docker cp ./wordpress-dump.sql mysql-wordpress:/tmp/wordpress-dump.sql
-* docker exec -it mysql-wordpress bash
+    docker compose up
 
-Inside that bash session, enter the following commands (entering the password when prompted):
+That's it. In a browser, go to "http://localhost:8080" to see this containerised Wordpress in action.
+Not very surprisingly, the opposite of "docker compose up" is "docker compose down".
 
-* mysql -p
-* create database wordpress; -- only the first time, if the database does not yet exist
-* exit; -- leaving mysql, but staying inside the Docker container
-* mysql -u root -p wordpress < /tmp/wordpress-dump.sql
-* mysql -p
-* show databases;
-* use wordpress; -- must exist
-* show tables; -- must have tables
-* select count(*) from wp_posts; -- must be non-zero
-* exit; -- leaving mysql, but still inside the Docker container
-* exit
+If we hadn't use docker-compose, the MySQL database image could have been created as follows:
 
-Now we are no longer connected to the running mysql-wordpress container.
+.. code-block:: bash
 
-If the mysql-wordpress container is stopped, it can be started again, of course. If it is removed,
-it must be created and started again, yet the database data should still be there, in volume mysql-data-volume.
+    docker build \
+      --build-arg MYSQL_DATABASE=wordpress \
+      --build-arg MYSQL_USER=wordpress \
+      --build-arg MYSQL_PASSWORD=${MYSQL_PASSWORD} \
+      --build-arg MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD} \
+      --build-arg MYSQL_PORT=3306 \
+      -t wordpress-mysql \
+      -f ./db.Dockerfile ./docker
 
-Database content can be dumped into a dump file (for later imports) in a mysql session as follows:
+The "docker compose up" command also led to the creation of 2 persistent volumes, for Wordpress content and database content.
+These volumes survive container restarts (e.g. by "docker compose restart").
 
-* mysqldump -u root -p wordpress > /tmp/wordpress-dump-2.sql
+Database content can be dumped into a dump file (for later imports) with a command similar to this one:
 
-Next, with the mysql-wordpress Docker container running, start an sbt session in a terminal with the
-root of this project as current directory.
+.. code-block:: bash
 
-Now we are set up to run programs, tests, etc. If we want to run Wordpress as well, against the
-running MySQL Docker container, enter the following command (in the same current directory as
-where we started MySQL):
+    docker exec wordpress-mysql mysqldump -u wordpress -p wordpress > /tmp/wordpress-dump-2.sql
 
-* docker run -e WORDPRESS_DB_USER=root -e WORDPRESS_DB_PASSWORD=root --name wordpress --link mysql-wordpress:mysql -p 8080:80 -v wordpress-www-volume:/var/www/html -d wordpress
+Next, with the mysql-wordpress Docker container still running, start an sbt session in a terminal with the
+root of this project as current directory. Now we are set up to run programs, tests, etc.
 
 Learning ZIO
 ============
