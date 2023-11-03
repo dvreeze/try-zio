@@ -11,7 +11,7 @@ Below Docker is used, and it is assumed that Docker commands can be executed wit
 the current user must have been made a member of the "docker" group ("sudo usermod -aG docker <user>", then log out and in).
 When using Docker Desktop, this should already be the case out of the box.
 
-Before running console programs and tests, use "docker-compose" to create Docker containers for wordpress and its database
+Before running console programs and tests, use "docker-compose" to create Docker containers for Wordpress and its database
 (where the passwords should be much stronger than in this example):
 
 .. code-block:: bash
@@ -43,11 +43,20 @@ If we hadn't use docker-compose, the MySQL database image could have been create
 The "docker compose up" command also led to the creation of 2 persistent volumes, for Wordpress content and database content.
 These volumes survive container restarts (e.g. by "docker compose restart").
 
-Database content can be dumped into a dump file (for later imports) with a command similar to this one:
+Database content can be dumped into a dump file (for later imports) roughly like this:
 
 .. code-block:: bash
 
-    docker exec wordpress-mysql mysqldump -u wordpress -p wordpress > /tmp/wordpress-dump-2.sql
+    docker exec -it wordpress-mysql bash
+
+    -- Inside the container:
+    mysqldump -u root -p wordpress > /tmp/wordpress-dump-2.sql
+    -- Enter the root password now
+    -- Leave the running container
+    exit
+
+    -- Again outside the container:
+    docker cp wordpress-mysql:/tmp/wordpress-dump-2.sql /tmp/wordpress-dump-2.sql
 
 Next, with the mysql-wordpress Docker container still running, start an sbt session in a terminal with the
 root of this project as current directory. Now we are set up to run programs, tests, etc.
