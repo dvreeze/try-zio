@@ -27,7 +27,7 @@ Before running console programs and tests, use "docker-compose" to create Docker
 That's it. In a browser, go to "http://localhost:8080" to see this containerised Wordpress in action.
 Not very surprisingly, the opposite of "docker compose up" is "docker compose down".
 
-If we hadn't use docker-compose, the MySQL database image could have been created as follows:
+If we hadn't used docker-compose, the MySQL database image and container could have been created as follows:
 
 .. code-block:: bash
 
@@ -37,8 +37,15 @@ If we hadn't use docker-compose, the MySQL database image could have been create
       --build-arg MYSQL_PASSWORD=${MYSQL_PASSWORD} \
       --build-arg MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD} \
       --build-arg MYSQL_PORT=3306 \
-      -t wordpress-mysql \
+      -t wordpress-mysql-2 \
       -f ./db.Dockerfile ./docker
+
+    docker run \
+      --name wordpress-mysql-2 \
+      -d -p 3307:${MYSQL_PORT} -v wordpress-mysql-volume-2:/var/lib/mysql \
+      wordpress-mysql-2
+
+Let's get back to the "docker compose" scenario.
 
 The "docker compose up" command also led to the creation of 2 persistent volumes, for Wordpress content and database content.
 These volumes survive container restarts (e.g. by "docker compose restart").
