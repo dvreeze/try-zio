@@ -49,8 +49,8 @@ object PrimesServer extends ZIOAppDefault:
   private def logServerStarted(port: Int): UIO[Unit] =
     ZIO.logInfo(s"Server started on port $port")
 
-  val httpApp: HttpApp[Any, Nothing] = Http.collectZIO[Request] {
-    case req @ Method.GET -> Path.root / "primes" / number =>
+  private val routes: Routes[Any, Nothing] = Routes(
+    Method.GET / "primes" / int("number") -> handler { (number: Int, req: Request) =>
       val getOptNum: Task[Option[BigInt]] = ZIO
         .attempt(BigInt(number))
         .asSome
@@ -59,39 +59,43 @@ object PrimesServer extends ZIOAppDefault:
         .flatMap { optNum =>
           optNum match
             case None =>
-              ZIO.succeed(Response.fromHttpError(HttpError.BadRequest(s"Not an integer: $number")))
+              ZIO.succeed(Response.badRequest(s"Not an integer: $number"))
             case Some(num) =>
               val getPrimes: Task[Seq[BigInt]] = Primes.findPrimes(num)
               getPrimes
                 .mapAttempt(primes => Response.text(s"Primes <= $num: ${primes.mkString(", ")}"))
-                .catchAll(_ => ZIO.succeed(Response.fromHttpError(HttpError.InternalServerError(s"No primes found for $number"))))
+                .catchAll(_ => ZIO.succeed(Response.internalServerError(s"No primes found for $number")))
         }
         .tap(_ => ZIO.attempt(req.url.path.toString).flatMap(path => logRequest(path)))
         .orDie @@ countAllRequests("GET", "/primes")
-    case req @ Method.GET -> Path.root / "primeFactors" / number =>
+    },
+    Method.GET / "primeFactors" / int("number") -> handler { (number: Int, req: Request) =>
       val getOptNum: Task[Option[BigInt]] = ZIO.attempt(BigInt(number)).asSome
 
       getOptNum
         .flatMap { optNum =>
           optNum match
             case None =>
-              ZIO.succeed(Response.fromHttpError(HttpError.BadRequest(s"Not an integer: $number")))
+              ZIO.succeed(Response.badRequest(s"Not an integer: $number"))
             case Some(num) =>
               val getPrimeFactors: Task[Primes.PrimeFactors] = Primes.findPrimeFactors(num)
               getPrimeFactors
                 .mapAttempt(factors => Response.text(s"Prime factors of $num: ${factors.getFactors.mkString(", ")}"))
-                .catchAll(_ => ZIO.succeed(Response.fromHttpError(HttpError.InternalServerError(s"No prime factors found for $number"))))
+                .catchAll(_ => ZIO.succeed(Response.internalServerError(s"No prime factors found for $number")))
         }
         .tap(_ => ZIO.attempt(req.url.path.toString).flatMap(path => logRequest(path)))
         .orDie @@ countAllRequests("GET", "/primeFactors")
-  }
+    }
+  )
+
+  val httpApp: HttpApp[Any] = routes.toHttpApp
 
   def run: UIO[ExitCode] =
     for {
       port <- portGetter
       exitCode <-
         Server
-          .serve(httpApp.withDefaultErrorResponse)
+          .serve(httpApp)
           .provide(Server.defaultWithPort(port).tap(_ => logServerStarted(port)))
           .exitCode
     } yield exitCode

@@ -65,10 +65,13 @@ object PrimeFactorsTestClient extends ZIOAppDefault:
           .tap(n => ZIO.logInfo(s"Number of available processors: $n"))
         responseStringsFiber <- ZIO
           .foreachPar(numbers.toList) { number =>
-            getUrl(cfg.host, cfg.port, number)
-              .flatMap(getResponseAsString)
-              .tap(s => ZIO.logInfo(s))
-              .provide(Client.default)
+            ZIO
+              .scoped {
+                getUrl(cfg.host, cfg.port, number)
+                  .flatMap(url => getResponseAsString(url))
+                  .tap(s => ZIO.logInfo(s))
+              }
+              .provideLayer(Client.default)
           }
           .withParallelism(1.max(numberOfProcessors / 2))
           .fork
@@ -78,10 +81,12 @@ object PrimeFactorsTestClient extends ZIOAppDefault:
     getStringResponses.tapError(t => ZIO.logError(t.getMessage)).orDie.exitCode
   end run
 
-  private def getResponseAsString(url: URI): RIO[Client, String] =
+  private def getResponseAsString(uri: URI): RIO[Scope & Client, String] =
     for {
-      headers <- ZIO.attempt(Headers(Header.Host(url.getHost)))
-      response <- Client.request(url = url.toString, headers = headers)
+      headers <- ZIO.attempt(Headers(Header.Host(uri.getHost)))
+      url <- ZIO.attempt(URL.fromURI(uri).get)
+      req = Request(url = url, headers = headers)
+      response <- Client.request(req)
       content <- response.body.asString
     } yield content
 

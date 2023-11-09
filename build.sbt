@@ -29,13 +29,13 @@ ThisBuild / publishTo := {
 ThisBuild / pomExtra := pomData
 ThisBuild / pomIncludeRepository := { _ => false }
 
-val zioVersion = "2.0.18"
+val zioVersion = "2.0.19"
 val zioJsonVersion = "0.6.2"
-val zioHttpVersion = "3.0.0-RC2"
+val zioHttpVersion = "3.0.0-RC3"
 val zioConfigVersion = "4.0.0-RC16"
-val zioJdbcVersion = "0.1.0"
-val zioSchemaVersion = "0.4.14"
-val testContainersVersion = "1.18.0"
+val zioJdbcVersion = "0.1.1"
+val zioSchemaVersion = "0.4.15"
+val testContainersVersion = "1.19.1"
 
 ThisBuild / libraryDependencies += "dev.zio" %% "zio" % zioVersion
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-streams" % zioVersion
