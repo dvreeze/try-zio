@@ -1,4 +1,4 @@
-version: '3.3'
+version: '3.8'
 
 # Look at https://www.baeldung.com/ops/docker-mysql-container
 
@@ -31,6 +31,7 @@ services:
         - MYSQL_USER=${MYSQL_USER}
         - MYSQL_PASSWORD=${MYSQL_PASSWORD}
         - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+    image: wordpress-mysql
     container_name: wordpress-mysql
     restart: always
     volumes:

@@ -1,6 +1,6 @@
 # Look at https://www.baeldung.com/ops/docker-mysql-container and https://hub.docker.com/_/mysql/
 
-FROM mysql:5.7
+FROM mysql:8.1
 
 MAINTAINER dvreeze
 
