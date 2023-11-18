@@ -1,7 +1,0 @@
-host = localhost
-port = 3306
-database = mysql
-user = root
-password = root
-otherProperties.useLegacyDatetimeCode = false
-otherProperties.serverTimezone = UTC

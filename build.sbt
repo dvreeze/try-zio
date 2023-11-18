@@ -35,7 +35,7 @@ val zioHttpVersion = "3.0.0-RC3"
 val zioConfigVersion = "4.0.0-RC16"
 val zioJdbcVersion = "0.1.1"
 val zioSchemaVersion = "0.4.15"
-val testContainersVersion = "1.19.1"
+val testContainersVersion = "1.19.2"
 
 ThisBuild / libraryDependencies += "dev.zio" %% "zio" % zioVersion
 ThisBuild / libraryDependencies += "dev.zio" %% "zio-streams" % zioVersion
@@ -69,6 +69,8 @@ ThisBuild / libraryDependencies += "com.zaxxer" % "HikariCP" % "5.0.1" // requir
 ThisBuild / libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.4.7"
 
 ThisBuild / testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
+
+ThisBuild / Test / fork := true
 
 lazy val root = project.in(file("."))
   .settings(

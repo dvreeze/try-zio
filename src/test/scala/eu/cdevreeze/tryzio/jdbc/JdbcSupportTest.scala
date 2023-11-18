@@ -16,28 +16,17 @@
 
 package eu.cdevreeze.tryzio.jdbc
 
+import org.testcontainers.containers.MySQLContainer
 import zio.*
 import zio.Console.printLine
-import zio.config.*
-import zio.config.typesafe.*
 import zio.jdbc.*
 import zio.test.Assertion.*
-import zio.test.{ZIOSpecDefault, assert}
+import zio.test.{Spec, ZIOSpecDefault, assert}
 
-import java.io.File
-import java.sql.ResultSet
-import scala.util.Using
 import scala.util.chaining.*
 
 /**
- * JDBC support test, against MySQL Docker container. Currently the test runs only against an already running MySQL Docker container, and
- * not against a testcontainers Docker instance.
- *
- * Before running, start the MySQL Docker container: "sudo docker run --name some-mysql -e MYSQL_ROOT_PASSWORD=root -p 3306:3306 -d
- * mysql:latest"
- *
- * To peek into that MySQL Docker container, use the following command, followed by a "mysql" session: "sudo docker exec -it some-mysql
- * bash"
+ * JDBC support test, using Testcontainers (MySQL).
  *
  * @author
  *   Chris de Vreeze
@@ -56,24 +45,27 @@ object JdbcSupportTest extends ZIOSpecDefault:
     Timezone(rs.getInt(1), rs.getString(2), rs.getString(3) == "Y")
   }
 
-  def spec = suite("ZIO-based JDBC Support test") {
+  private val rawSpec: Spec[MySQLTestContainer, Throwable] = suite("ZIO-based JDBC Support test") {
     // Probably wasteful to start connection pool on each test.
 
     List(
       test("Querying for users succeeds") {
         for {
-          result <- getUsers()
+          _ <- ZIO.service[MySQLTestContainer]
+          result <- findAllUsers()
             .tap(res => printLine(s"Users: $res"))
         } yield assert(result.map(_.host).distinct)(equalTo(Seq("%", "localhost")))
       },
       test("Querying multiple times simultaneously for users succeeds") {
         for {
-          multipleResults <- getUsers()
+          _ <- ZIO.service[MySQLTestContainer]
+          multipleResults <- findAllUsers()
             .pipe(getDs => ZIO.foreachPar(0.until(5))(_ => getDs))
         } yield assert(multipleResults.flatten.map(_.host).distinct)(equalTo(Seq("%", "localhost")))
       },
       test("Querying for timezones succeeds") {
         for {
+          _ <- ZIO.service[MySQLTestContainer]
           result <- getSomeTimezones("Europe/%")
             .tap(res => printLine(s"Timezones: $res"))
         } yield {
@@ -85,6 +77,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
       },
       test("Querying multiple times simultaneously for timezones succeeds") {
         for {
+          _ <- ZIO.service[MySQLTestContainer]
           multipleResults <- getSomeTimezones("Europe/%")
             .pipe(getDs => ZIO.foreachPar(0.until(5))(_ => getDs))
         } yield {
@@ -97,7 +90,9 @@ object JdbcSupportTest extends ZIOSpecDefault:
     )
   }
 
-  private def getUsers(): Task[Seq[User]] =
+  val spec: Spec[Any, Throwable] = rawSpec.provideLayerShared(Containers.testContainerLayer)
+
+  private def findAllUsers(): Task[Seq[User]] =
     for {
       sqlQuery <- ZIO.attempt {
         sql"select host, user from user"
@@ -107,7 +102,7 @@ object JdbcSupportTest extends ZIOSpecDefault:
       }
         .provideLayer(ConnectionPools.testLayer)
     } yield result
-  end getUsers
+  end findAllUsers
 
   private def getSomeTimezones(timezoneLikeString: String): Task[Seq[Timezone]] =
     val sqlQueryTask: Task[SqlFragment] = ZIO.attempt {
@@ -128,46 +123,36 @@ object JdbcSupportTest extends ZIOSpecDefault:
     } yield result
   end getSomeTimezones
 
+  final class MySQLTestContainer extends MySQLContainer[MySQLTestContainer]("mysql:5.7")
+
+  object Containers:
+
+    val testContainerLayer: ULayer[MySQLTestContainer] =
+      ZLayer.scoped {
+        ZIO.acquireRelease {
+          ZIO.attempt(new MySQLTestContainer())
+            .tap(container => ZIO.attempt(container.withInitScript("loadTestData.sql")))
+            .tap(container => ZIO.attempt(container.start()))
+            .orDie
+        } { container =>
+          ZIO.attempt(container.stop()).ignoreLogged
+        }
+      }
+
+  end Containers
+
   object ConnectionPools:
-
-    final case class DbConfig(
-        host: String,
-        port: Int,
-        database: String,
-        user: String,
-        password: String,
-        otherProperties: Map[String, String]
-    )
-
-    object DbConfig:
-      val configuration: Config[DbConfig] =
-        Config
-          .string("host")
-          .zip(Config.int("port"))
-          .zip(Config.string("database"))
-          .zip(Config.string("user"))
-          .zip(Config.string("password"))
-          .zip(Config.table("otherProperties", Config.string))
-          .to[DbConfig]
 
     val zioPoolConfigLayer: ULayer[ZConnectionPoolConfig] =
       ZLayer.succeed(ZConnectionPoolConfig.default)
 
-    private val cpSettings: Task[DbConfig] =
-      for {
-        configProvider <- ZIO.attempt {
-          ConfigProvider.fromHoconFile(new File(classOf[ZIO[?, ?, ?]].getResource("/db-test.hocon").toURI))
-        }
-        settings <- configProvider.load(DbConfig.configuration)
-      } yield settings
-
     val connectionPoolLayer: ZLayer[ZConnectionPoolConfig, Throwable, ZConnectionPool] =
-      ZLayer.fromZIO(cpSettings).flatMap { cpConfig =>
+      Containers.testContainerLayer.flatMap { container =>
         ZConnectionPool.mysql(
-          host = cpConfig.get.host,
-          port = cpConfig.get.port,
-          database = cpConfig.get.database,
-          props = Map("user" -> cpConfig.get.user, "password" -> cpConfig.get.password) ++ cpConfig.get.otherProperties
+          host = container.get.getHost,
+          port = container.get.getFirstMappedPort,
+          database = container.get.getDatabaseName,
+          props = Map("user" -> container.get.getUsername, "password" -> container.get.getPassword)
         )
       }
 
