@@ -130,7 +130,8 @@ object JdbcSupportTest extends ZIOSpecDefault:
     val testContainerLayer: ULayer[MySQLTestContainer] =
       ZLayer.scoped {
         ZIO.acquireRelease {
-          ZIO.attempt(new MySQLTestContainer())
+          ZIO
+            .attempt(new MySQLTestContainer())
             .tap(container => ZIO.attempt(container.withInitScript("loadTestData.sql")))
             .tap(container => ZIO.attempt(container.start()))
             .orDie
@@ -147,12 +148,13 @@ object JdbcSupportTest extends ZIOSpecDefault:
       ZLayer.succeed(ZConnectionPoolConfig.default)
 
     val connectionPoolLayer: ZLayer[ZConnectionPoolConfig, Throwable, ZConnectionPool] =
-      Containers.testContainerLayer.flatMap { container =>
+      Containers.testContainerLayer.flatMap { containerEnv =>
+        val container: MySQLTestContainer = containerEnv.get[MySQLTestContainer]
         ZConnectionPool.mysql(
-          host = container.get.getHost,
-          port = container.get.getFirstMappedPort,
-          database = container.get.getDatabaseName,
-          props = Map("user" -> container.get.getUsername, "password" -> container.get.getPassword)
+          host = container.getHost,
+          port = container.getFirstMappedPort,
+          database = container.getDatabaseName,
+          props = Map("user" -> container.getUsername, "password" -> container.getPassword)
         )
       }
 
